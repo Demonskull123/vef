@@ -31,8 +31,8 @@ local P = {
 	bad = Color3.fromRGB(255,95,120),
 }
 
-local MARK_IMG = "rbxassetid://1904867353"
-local SKY_IMG = "rbxassetid://111702597357462"
+local MARK_IMG = "rbxassetid://" .. "1904867353"
+local SKY_IMG = "rbxassetid://" .. "111702597357462"
 
 local function font(name, weight)
 	local ok, f = pcall(function() return Font.new("rbxasset://fonts/families/"..name..".json", weight) end)
@@ -1284,26 +1284,27 @@ local function StartAimbotV2()
 				if sp - before > 10 and sp > 22 and (ball.Position - HRP.Position).Magnitude < 18 then
 					local flat = Vector3.new(ball.AssemblyLinearVelocity.X, 0, ball.AssemblyLinearVelocity.Z)
 					if flat.Magnitude >= 12 then
-					local best, bestAng = nil, 28
-					for _, pl in ipairs(Players:GetPlayers()) do
-						if pl ~= LocalPlayer and pl.Team == LocalPlayer.Team then
-							local h = pl.Character and pl.Character:FindFirstChild("HumanoidRootPart")
-							if h then
-								local to = Vector3.new(h.Position.X - ball.Position.X, 0, h.Position.Z - ball.Position.Z)
-								if to.Magnitude > 12 and to.Magnitude < 120 then
-									local ang = math.deg(math.acos(math.clamp(to.Unit:Dot(flat.Unit), -1, 1)))
-									if ang < bestAng then best, bestAng = h, ang end
+						local best, bestAng = nil, 28
+						for _, pl in ipairs(Players:GetPlayers()) do
+							if pl ~= LocalPlayer and pl.Team == LocalPlayer.Team then
+								local h = pl.Character and pl.Character:FindFirstChild("HumanoidRootPart")
+								if h then
+									local to = Vector3.new(h.Position.X - ball.Position.X, 0, h.Position.Z - ball.Position.Z)
+									if to.Magnitude > 12 and to.Magnitude < 120 then
+										local ang = math.deg(math.acos(math.clamp(to.Unit:Dot(flat.Unit), -1, 1)))
+										if ang < bestAng then best, bestAng = h, ang end
+									end
 								end
 							end
 						end
-					end
-					if best then
-						local to = Vector3.new(best.Position.X - ball.Position.X, 0, best.Position.Z - ball.Position.Z)
-						if to.Magnitude > 1 then
-							local dir = to.Unit
-							local v = ball.AssemblyLinearVelocity
-							local hs = Vector3.new(v.X, 0, v.Z).Magnitude
-							ball.AssemblyLinearVelocity = Vector3.new(dir.X * hs, v.Y, dir.Z * hs)
+						if best then
+							local to = Vector3.new(best.Position.X - ball.Position.X, 0, best.Position.Z - ball.Position.Z)
+							if to.Magnitude > 1 then
+								local dir = to.Unit
+								local v = ball.AssemblyLinearVelocity
+								local hs = Vector3.new(v.X, 0, v.Z).Magnitude
+								ball.AssemblyLinearVelocity = Vector3.new(dir.X * hs, v.Y, dir.Z * hs)
+							end
 						end
 					end
 				end
@@ -1589,8 +1590,7 @@ end
 
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end
-	if input.KeyCode == MossV2.ToggleKey and MossV2.Enabled == false and false then end -- handled by toggle UI
-	if not MossV2.Enabled then return end
+		if not MossV2.Enabled then return end
 	if input.KeyCode == MossV2.TPKey then mossTP(); return end
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.KeyCode == Enum.KeyCode.Q then
 		mossShoot()
@@ -1627,7 +1627,7 @@ end)
 
 
 -- TABS (exact Kaiven names + emoji-style icons)
-local playerTab = makeTab("Player", "👤")
+local playerTab = makeTab("Player", "P")
 playerTab:Section("Reach", "Extends hitbox to touch ball")
 playerTab:Toggle("Reach", "Master switch", false, function(v)
 	ReachConfig.Master=v
@@ -1655,7 +1655,7 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 	task.wait(0.3); local hum=char:FindFirstChildOfClass("Humanoid"); if hum then hum.WalkSpeed=WalkSpeedValue end
 end)
 
-local visualsTab = makeTab("Visuals", "👁")
+local visualsTab = makeTab("Visuals", "V")
 visualsTab:Section("Radar", "Shows players and balls on a circular radar")
 visualsTab:Toggle("Radar", nil, false, function(v) if v then RadarEnabled=true; StartRadar() else StopRadar() end end)
 visualsTab:Slider("Max Range", "Maximum detection range for radar", 50, 500, 150, function(v) RadarConfig.MaxRange=v end, " studs")
@@ -1675,7 +1675,7 @@ visualsTab:Button("Pitch: Green", false, function() SetPitchColor(Color3.fromRGB
 visualsTab:Button("Pitch: Dark", false, function() SetPitchColor(Color3.fromRGB(20,40,20)); notify("Pitch dark","good") end)
 visualsTab:Button("Pitch: Purple", false, function() SetPitchColor(Color3.fromRGB(60,20,80)); notify("Pitch purple","good") end)
 
-local gkTab = makeTab("GK", "🧤")
+local gkTab = makeTab("GK", "G")
 gkTab:Section("Auto Catch", "Automatically catches balls in range")
 gkTab:Toggle("Auto Catch", nil, false, function(v) AutoCatch.Enabled=v end)
 gkTab:Slider("Catch Range", "Max distance to auto-catch", 5, 50, 25, function(v) AutoCatch.Range=v end, " studs")
@@ -1698,7 +1698,7 @@ gkTab:Slider("V2 Trigger Time", "Seconds before goal line to dive", 0.2, 1.2, 0.
 gkTab:Slider("V2 Cooldown", "Delay between saves", 0.3, 1.5, 0.80, function(v) GKV2.COOLDOWN = v end, " s")
 gkTab:Label("V2: strict low/high split + post-hit magnet")
 
-local autoTab = makeTab("Auto", "⚡")
+local autoTab = makeTab("Auto", "A2")
 autoTab:Section("Auto Dribble", "Hotkey: K")
 autoTab:Toggle("Auto Dribble", "Enable/Disable Auto Dribble (use hotkey to toggle on/off)", false, function(v) AutoConfig.DribbleEnabled=v end)
 autoTab:Slider("Dribble Radius", nil, 0.5, 4, 1.2, function(v) AutoConfig.DribbleRadius=v end, "")
@@ -1725,7 +1725,7 @@ autoTab:Slider("Moss Air Range", "Air ball magnet distance", 10, 40, 22, functio
 autoTab:Label("Moss V2: V = ball TP | click/Q = shoot | jump = header")
 
 
-local aimTab = makeTab("Aimbot", "🎯")
+local aimTab = makeTab("Aimbot", "A")
 aimTab:Section("Aimbot Goal V1", "Corner velocity assist (ZEX style)")
 aimTab:Toggle("Enable V1", "Master switch for aimbot goal v1", false, function(v)
 	if v then StartAimbotV1(); notify("Aimbot Goal V1 ON", "good")
@@ -1758,7 +1758,7 @@ end)
 aimTab:Slider("V2 Strength", "Auto curve strength", 0.05, 0.40, 0.18, function(v) AimbotV2.Strength = v end, "")
 aimTab:Label("V2: J = auto bins | K = pass assist")
 
-local miscTab = makeTab("Misc", "⚙")
+local miscTab = makeTab("Misc", "M")
 miscTab:Section("Utility", nil)
 miscTab:Button("Notify Test", true, function() notify("Valkyrie.ui online","good") end)
 miscTab:Button("Unload", false, function()
