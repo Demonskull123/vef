@@ -351,8 +351,8 @@ end)
 orb.MouseButton1Click:Connect(function() if not moved then show() end end)
 drag(orb, orb)
 UserInputService.InputBegan:Connect(function(i, gp)
-	if i.UserInputType ~= Enum.UserInputType.Keyboard or gp then return end
-	if i.KeyCode.Name == "RightControl" then if main.Visible then hide() else show() end end
+	if i.UserInputType ~= Enum.UserInputType.Keyboard then return end
+	if i.KeyCode == Enum.KeyCode.RightControl then if main.Visible then hide() else show() end end
 end)
 
 local pages, navBtns, active = {}, {}, nil
@@ -1060,6 +1060,572 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 end)
 LocalPlayer.Idled:Connect(function() pcall(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end) end)
 
+
+-- ============================================================
+-- AIMBOT GOAL V1 (Auto Top Bins style - corner velocity assist)
+-- ============================================================
+local AimbotV1 = {
+	Enabled = false,
+	Assist = false,
+	Hud = false,
+	Strength = 0.12,
+	MinSpeed = 25,
+	ReleaseSpeed = 15,
+	ToggleKey = Enum.KeyCode.H,
+	AssistKey = Enum.KeyCode.V,
+	SwapKey = Enum.KeyCode.T,
+	lockedNet = nil,
+	shotLocked = false,
+	lockedPoint = nil,
+	conn = nil,
+	HOME = { FarLeft = Vector3.new(12, 12, -368), FarRight = Vector3.new(-11.5, 12, -368) },
+	AWAY = { FarLeft = Vector3.new(-11.5, 12, 368), FarRight = Vector3.new(12, 12, 368) },
+}
+
+local function a1GetBall()
+	local balls = GetVEFBalls and GetVEFBalls() or {}
+	local best, bd = nil, math.huge
+	local root = HRP
+	for _, b in ipairs(balls) do
+		if b and b.Parent then
+			local d = root and (b.Position - root.Position).Magnitude or 0
+			if d < bd then best, bd = b, d end
+		end
+	end
+	return best
+end
+
+local function a1AttackNet()
+	if AimbotV1.lockedNet then return AimbotV1.lockedNet end
+	local team = LocalPlayer.Team
+	if team then
+		local n = team.Name:lower()
+		if n:find("away") or n:find("blue") or n:find("guest") then
+			AimbotV1.lockedNet = AimbotV1.HOME
+		elseif n:find("home") or n:find("red") then
+			AimbotV1.lockedNet = AimbotV1.AWAY
+		end
+	end
+	if not AimbotV1.lockedNet and HRP then
+		local hc = (AimbotV1.HOME.FarLeft + AimbotV1.HOME.FarRight) / 2
+		local ac = (AimbotV1.AWAY.FarLeft + AimbotV1.AWAY.FarRight) / 2
+		AimbotV1.lockedNet = (HRP.Position.Z < (hc.Z + ac.Z) / 2) and AimbotV1.AWAY or AimbotV1.HOME
+	end
+	return AimbotV1.lockedNet or AimbotV1.AWAY
+end
+
+local function a1GK(net)
+	local best, md = nil, 80
+	local c = (net.FarLeft + net.FarRight) / 2
+	for _, pl in ipairs(Players:GetPlayers()) do
+		if pl ~= LocalPlayer and pl.Team ~= LocalPlayer.Team then
+			local h = pl.Character and pl.Character:FindFirstChild("HumanoidRootPart")
+			if h then
+				local d = (h.Position - c).Magnitude
+				if d < md then best, md = pl, d end
+			end
+		end
+	end
+	return best
+end
+
+local function StartAimbotV1()
+	if AimbotV1.conn then return end
+	AimbotV1.Enabled = true
+	AimbotV1.conn = RunService.Heartbeat:Connect(function()
+		if not AimbotV1.Enabled or not AimbotV1.Assist then return end
+		local ball = a1GetBall()
+		local net = a1AttackNet()
+		if not ball or not net or not HRP then return end
+		local vel = ball.AssemblyLinearVelocity
+		local speed = Vector3.new(vel.X, 0, vel.Z).Magnitude
+		local pos = ball.Position
+		local nc = (net.FarLeft + net.FarRight) / 2
+		local crossed = (net == AimbotV1.AWAY and pos.Z > nc.Z) or (net == AimbotV1.HOME and pos.Z < nc.Z)
+		if crossed then
+			AimbotV1.shotLocked = false
+			AimbotV1.lockedPoint = nil
+			return
+		end
+		local aim = net.FarLeft
+		local gk = a1GK(net)
+		local gkH = gk and gk.Character and gk.Character:FindFirstChild("HumanoidRootPart")
+		if gkH then
+			if (net.FarLeft - gkH.Position).Magnitude > (net.FarRight - gkH.Position).Magnitude then
+				aim = net.FarLeft
+			else
+				aim = net.FarRight
+			end
+		else
+			aim = (HRP.Position.X < nc.X) and net.FarRight or net.FarLeft
+		end
+		if speed >= AimbotV1.MinSpeed then
+			if not AimbotV1.shotLocked then
+				AimbotV1.shotLocked = true
+				AimbotV1.lockedPoint = aim
+			end
+		elseif speed < AimbotV1.ReleaseSpeed then
+			AimbotV1.shotLocked = false
+			AimbotV1.lockedPoint = nil
+		end
+		local target = AimbotV1.shotLocked and AimbotV1.lockedPoint or aim
+		if AimbotV1.shotLocked and target and speed > 0.1 then
+			local dir = Vector3.new(target.X - pos.X, 0, target.Z - pos.Z)
+			if dir.Magnitude > 0.1 then
+				dir = dir.Unit
+				local strength = math.clamp((speed / 120) * AimbotV1.Strength, 0.03, AimbotV1.Strength)
+				local cur = Vector3.new(vel.X, 0, vel.Z)
+				local want = dir * speed
+				local blended = cur:Lerp(want, strength)
+				if blended.Magnitude > 0.1 then blended = blended.Unit * speed end
+				ball.AssemblyLinearVelocity = Vector3.new(blended.X, vel.Y, blended.Z)
+			end
+		end
+	end)
+end
+
+local function StopAimbotV1()
+	AimbotV1.Enabled = false
+	AimbotV1.Assist = false
+	AimbotV1.shotLocked = false
+	if AimbotV1.conn then pcall(function() AimbotV1.conn:Disconnect() end); AimbotV1.conn = nil end
+end
+
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp or not AimbotV1.Enabled then return end
+	if input.KeyCode == AimbotV1.AssistKey then
+		AimbotV1.Assist = not AimbotV1.Assist
+		notify("Aimbot V1 Assist " .. (AimbotV1.Assist and "ON" or "OFF"), AimbotV1.Assist and "good" or "warn")
+	elseif input.KeyCode == AimbotV1.SwapKey then
+		AimbotV1.lockedNet = (AimbotV1.lockedNet == AimbotV1.HOME) and AimbotV1.AWAY or AimbotV1.HOME
+		notify("Aimbot V1 target swapped", "good")
+	end
+end)
+
+-- ============================================================
+-- AIMBOT GOAL V2 (TB-style auto top bins + pass assist core)
+-- ============================================================
+local AimbotV2 = {
+	Enabled = false,
+	Auto = false,
+	Pass = false,
+	Strength = 0.18,
+	MinShot = 18,
+	MaxTime = 4.5,
+	conn = nil,
+	passConn = nil,
+	activeUntil = 0,
+	HOME = { TL = Vector3.new(-15.51, 16.2, 366.80), TR = Vector3.new(16.59, 16.2, 366.80) },
+	AWAY = { TL = Vector3.new(16.59, 16.2, -367.76), TR = Vector3.new(-15.51, 16.2, -367.76) },
+}
+
+local function a2Goals()
+	local team = LocalPlayer.Team and LocalPlayer.Team.Name or ""
+	if team:find("Away") then return AimbotV2.AWAY end
+	return AimbotV2.HOME
+end
+
+local function a2PickCorner(ball, goal)
+	local l, r = goal.TL, goal.TR
+	local c = (l + r) / 2
+	local vel = ball.AssemblyLinearVelocity
+	local hv = Vector3.new(vel.X, 0, vel.Z)
+	if hv.Magnitude < 1 then return l end
+	-- pick corner farther from predicted impact vs GK
+	local bestGK, md = nil, 90
+	for _, pl in ipairs(Players:GetPlayers()) do
+		if pl ~= LocalPlayer and pl.Team ~= LocalPlayer.Team then
+			local h = pl.Character and pl.Character:FindFirstChild("HumanoidRootPart")
+			if h and (h.Position - c).Magnitude < md then bestGK, md = h, (h.Position - c).Magnitude end
+		end
+	end
+	if bestGK then
+		return ((l - bestGK.Position).Magnitude > (r - bestGK.Position).Magnitude) and l or r
+	end
+	return (ball.Position.X < c.X) and r or l
+end
+
+local function StartAimbotV2()
+	if AimbotV2.conn then return end
+	AimbotV2.Enabled = true
+	AimbotV2.conn = RunService.Heartbeat:Connect(function()
+		if not AimbotV2.Enabled or not AimbotV2.Auto then return end
+		if os.clock() < AimbotV2.activeUntil then return end
+		local ball = a1GetBall()
+		if not ball or not HRP then return end
+		local vel = ball.AssemblyLinearVelocity
+		local speed = Vector3.new(vel.X, 0, vel.Z).Magnitude
+		if speed < AimbotV2.MinShot then return end
+		if (ball.Position - HRP.Position).Magnitude > 35 then return end
+		local goal = a2Goals()
+		local target = a2PickCorner(ball, goal)
+		local dir = Vector3.new(target.X - ball.Position.X, 0, target.Z - ball.Position.Z)
+		if dir.Magnitude < 1 then return end
+		dir = dir.Unit
+		local strength = math.clamp(AimbotV2.Strength, 0.05, 0.35)
+		local cur = Vector3.new(vel.X, 0, vel.Z)
+		local want = dir * speed
+		local blend = cur:Lerp(want, strength)
+		if blend.Magnitude > 0.1 then blend = blend.Unit * speed end
+		ball.AssemblyLinearVelocity = Vector3.new(blend.X, vel.Y, blend.Z)
+	end)
+
+	-- pass assist: redirect near-pass toward nearest teammate
+	if AimbotV2.passConn then pcall(function() AimbotV2.passConn:Disconnect() end) end
+	local prevSpeeds = {}
+	AimbotV2.passConn = RunService.Heartbeat:Connect(function()
+		if not AimbotV2.Enabled or not AimbotV2.Pass or not HRP then return end
+		local balls = GetVEFBalls and GetVEFBalls() or {}
+		for _, ball in ipairs(balls) do
+			if ball and ball.Parent then
+				local sp = ball.AssemblyLinearVelocity.Magnitude
+				local before = prevSpeeds[ball] or 0
+				prevSpeeds[ball] = sp
+				if sp - before > 10 and sp > 22 and (ball.Position - HRP.Position).Magnitude < 18 then
+					local flat = Vector3.new(ball.AssemblyLinearVelocity.X, 0, ball.AssemblyLinearVelocity.Z)
+					if flat.Magnitude >= 12 then
+					local best, bestAng = nil, 28
+					for _, pl in ipairs(Players:GetPlayers()) do
+						if pl ~= LocalPlayer and pl.Team == LocalPlayer.Team then
+							local h = pl.Character and pl.Character:FindFirstChild("HumanoidRootPart")
+							if h then
+								local to = Vector3.new(h.Position.X - ball.Position.X, 0, h.Position.Z - ball.Position.Z)
+								if to.Magnitude > 12 and to.Magnitude < 120 then
+									local ang = math.deg(math.acos(math.clamp(to.Unit:Dot(flat.Unit), -1, 1)))
+									if ang < bestAng then best, bestAng = h, ang end
+								end
+							end
+						end
+					end
+					if best then
+						local to = Vector3.new(best.Position.X - ball.Position.X, 0, best.Position.Z - ball.Position.Z)
+						if to.Magnitude > 1 then
+							local dir = to.Unit
+							local v = ball.AssemblyLinearVelocity
+							local hs = Vector3.new(v.X, 0, v.Z).Magnitude
+							ball.AssemblyLinearVelocity = Vector3.new(dir.X * hs, v.Y, dir.Z * hs)
+						end
+					end
+				end
+			end
+		end
+	end)
+end
+
+local function StopAimbotV2()
+	AimbotV2.Enabled = false
+	AimbotV2.Auto = false
+	AimbotV2.Pass = false
+	if AimbotV2.conn then pcall(function() AimbotV2.conn:Disconnect() end); AimbotV2.conn = nil end
+	if AimbotV2.passConn then pcall(function() AimbotV2.passConn:Disconnect() end); AimbotV2.passConn = nil end
+end
+
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp or not AimbotV2.Enabled then return end
+	if input.KeyCode == Enum.KeyCode.J then
+		AimbotV2.Auto = not AimbotV2.Auto
+		notify("Aimbot V2 Auto " .. (AimbotV2.Auto and "ON" or "OFF"), AimbotV2.Auto and "good" or "warn")
+	elseif input.KeyCode == Enum.KeyCode.K then
+		AimbotV2.Pass = not AimbotV2.Pass
+		notify("Aimbot V2 Pass " .. (AimbotV2.Pass and "ON" or "OFF"), AimbotV2.Pass and "good" or "warn")
+	end
+end)
+
+-- ============================================================
+-- AUTO GK V2 (VRF AI style - strict low/high dive + magnet)
+-- ============================================================
+local GKV2 = {
+	Enabled = false,
+	conn = nil,
+	lastSave = 0,
+	saving = false,
+	GOAL_WIDTH = 42,
+	GOAL_HEIGHT = 19,
+	GROUND_Y = 5.5,
+	SPLIT = 5.2,
+	TRIGGER = 0.65,
+	COOLDOWN = 0.80,
+	MIN_SPEED = 6,
+	MAX_DIST = 115,
+	JUMP_DELAY = 0.085,
+	HOLD = 0.30,
+	Keys = { LowDive = Enum.KeyCode.C, HighDive = Enum.KeyCode.E, HighCatch = Enum.KeyCode.R, LowCatch = Enum.KeyCode.F },
+}
+
+local function gk2GoalZ(hrpZ)
+	local pitch = workspace:FindFirstChild("Pitch")
+	if pitch and pitch:FindFirstChild("GLT") then
+		local h = pitch.GLT:FindFirstChild("HGLT")
+		local a = pitch.GLT:FindFirstChild("AGLT")
+		if h and a then
+			if hrpZ > 0 then return a.Position.Z, 1 else return h.Position.Z, -1 end
+		end
+	end
+	return (hrpZ > 0) and 376 or -376, (hrpZ > 0) and 1 or -1
+end
+
+local function gk2Predict(ball, targetZ, dirZ)
+	local pos, vel = ball.Position, ball.AssemblyLinearVelocity
+	if (dirZ > 0 and vel.Z <= 1.5) or (dirZ < 0 and vel.Z >= -1.5) then return nil, nil end
+	local dz = targetZ - pos.Z
+	if (dirZ > 0 and dz <= 0) or (dirZ < 0 and dz >= 0) then return nil, nil end
+	local t = dz / vel.Z
+	if t <= 0 or t > 2.5 then return nil, nil end
+	local g = (vel.Magnitude > 60) and 24 or 38
+	local py = pos.Y + vel.Y * t - 0.5 * g * t * t
+	py = math.max(py, GKV2.GROUND_Y)
+	return Vector3.new(pos.X + vel.X * t, py, targetZ), t
+end
+
+local function gk2Magnet(ball, isCatch, ttg, goalZ)
+	task.spawn(function()
+		task.wait(math.clamp(ttg * 0.25, 0.04, 0.15))
+		local t0 = os.clock()
+		local fire = firetouchinterest or (syn and syn.firetouchinterest)
+		while os.clock() - t0 < 0.8 do
+			if not ball or not ball.Parent or not Character or not HRP then break end
+			local limb = Character:FindFirstChild("RightHand") or Character:FindFirstChild("LeftHand") or Character:FindFirstChild("Right Arm") or Character:FindFirstChild("Torso") or HRP
+			if limb then
+				local dist = (limb.Position - ball.Position).Magnitude
+				local toLine = math.abs(ball.Position.Z - goalZ)
+				if dist <= 12 or (math.abs(ball.Position.X) <= 24 and toLine <= 4 and dist <= 26) then
+					if fire then pcall(fire, ball, limb, 0); pcall(fire, ball, limb, 1) end
+					local contact = limb.Position + limb.CFrame.LookVector * 0.6
+					ball.CFrame = CFrame.new(contact)
+					if isCatch then
+						ball.AssemblyLinearVelocity = Vector3.zero
+					else
+						ball.AssemblyLinearVelocity = ((contact - HRP.Position).Unit + Vector3.new(0, 0.35, 0)) * 24
+					end
+					break
+				end
+			end
+			RunService.Heartbeat:Wait()
+		end
+	end)
+end
+
+local function gk2Execute(pred, ball, ttg, goalZ, dirZ)
+	if not HRP or not Humanoid then return end
+	GKV2.saving = true
+	GKV2.lastSave = os.clock()
+	HRP.CFrame = CFrame.lookAt(HRP.Position, HRP.Position + Vector3.new(0, 0, -dirZ))
+	local rel = HRP.CFrame:PointToObjectSpace(pred)
+	local isHigh = (pred.Y - GKV2.GROUND_Y) >= GKV2.SPLIT
+	local isCenter = math.abs(rel.X) <= 2.8
+	local dirKey = (rel.X > 2.8) and Enum.KeyCode.D or ((rel.X < -2.8) and Enum.KeyCode.A or Enum.KeyCode.W)
+	local saveKey = isHigh and (isCenter and GKV2.Keys.HighCatch or GKV2.Keys.HighDive) or (isCenter and GKV2.Keys.LowCatch or GKV2.Keys.LowDive)
+	local isCatch = isCenter and not isHigh
+	task.spawn(function()
+		if isHigh then
+			Humanoid.Jump = true
+			VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+			task.wait(GKV2.JUMP_DELAY)
+		end
+		VirtualInputManager:SendKeyEvent(true, dirKey, false, game)
+		VirtualInputManager:SendKeyEvent(true, saveKey, false, game)
+		if ball then gk2Magnet(ball, isCatch, ttg, goalZ) end
+		task.delay(GKV2.HOLD, function()
+			VirtualInputManager:SendKeyEvent(false, saveKey, false, game)
+			VirtualInputManager:SendKeyEvent(false, dirKey, false, game)
+			if isHigh then VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game) end
+		end)
+	end)
+	task.delay(GKV2.COOLDOWN, function() GKV2.saving = false end)
+end
+
+local function StartGKV2()
+	if GKV2.conn then return end
+	GKV2.Enabled = true
+	local step = RunService.RenderStepped
+	GKV2.conn = step:Connect(function()
+		if not GKV2.Enabled or GKV2.saving then return end
+		if os.clock() - GKV2.lastSave < GKV2.COOLDOWN then return end
+		if not HRP then return end
+		local goalZ, dirZ = gk2GoalZ(HRP.Position.Z)
+		if math.abs(HRP.Position.Z - goalZ) > 30 then return end
+		for _, ball in ipairs(GetVEFBalls and GetVEFBalls() or {}) do
+			local vel = ball.AssemblyLinearVelocity
+			if vel.Magnitude >= GKV2.MIN_SPEED and (HRP.Position - ball.Position).Magnitude <= GKV2.MAX_DIST then
+				local pred, t = gk2Predict(ball, goalZ, dirZ)
+				if pred and math.abs(pred.X) <= GKV2.GOAL_WIDTH / 2 + 4 and pred.Y <= GKV2.GOAL_HEIGHT then
+					if t and t <= GKV2.TRIGGER and t >= 0.005 then
+						gk2Execute(pred, ball, t, goalZ, dirZ)
+						break
+					end
+				end
+			end
+		end
+	end)
+end
+
+local function StopGKV2()
+	GKV2.Enabled = false
+	if GKV2.conn then pcall(function() GKV2.conn:Disconnect() end); GKV2.conn = nil end
+end
+
+-- ============================================================
+-- MOSS V2 (magnet + header + ball TP + click spam)
+-- ============================================================
+local MossV2 = {
+	Enabled = false,
+	Magnet = true,
+	Header = true,
+	AutoShoot = true,
+	BallTP = true,
+	magnetRange = 14,
+	airRange = 22,
+	smooth = 0.35,
+	shotCooldown = 0.60,
+	headerDelay = 0.20,
+	headerPower = 58,
+	headerUp = 18,
+	tpDist = 50,
+	exemptUntil = 0,
+	loop = nil,
+	auto = nil,
+	ToggleKey = Enum.KeyCode.T,
+	TPKey = Enum.KeyCode.V,
+}
+
+local function mossBall()
+	local best, bd = nil, math.huge
+	if not HRP then return nil, math.huge end
+	for _, b in ipairs(GetVEFBalls and GetVEFBalls() or {}) do
+		if b and b.Parent then
+			local d = (b.Position - HRP.Position).Magnitude
+			if d < bd then best, bd = b, d end
+		end
+	end
+	return best, bd
+end
+
+local function mossOwn(ball)
+	pcall(function() ball:SetNetworkOwner(LocalPlayer) end)
+end
+
+local function mossMagnetTick()
+	if not MossV2.Enabled or not MossV2.Magnet then return end
+	if tick() < MossV2.exemptUntil then return end
+	local head = Character and Character:FindFirstChild("Head")
+	if not HRP then return end
+	local ball, dist = mossBall()
+	if not ball then return end
+	local air = (ball.Position.Y - HRP.Position.Y) > 1.8 or ball.AssemblyLinearVelocity.Y > 4
+	if dist > (air and MossV2.airRange or MossV2.magnetRange) then return end
+	mossOwn(ball)
+	local cam = workspace.CurrentCamera
+	local fwd = (cam and cam.CFrame.LookVector) or HRP.CFrame.LookVector
+	local target = (air and head) and (head.Position + Vector3.new(0, 1.1, 0)) or (HRP.Position + Vector3.new(0, -0.6, 0) + fwd * 1.8)
+	local cur = ball.AssemblyLinearVelocity
+	local want = (target - ball.Position) * (air and 28 or 24)
+	ball.AssemblyLinearVelocity = cur:Lerp(want, MossV2.smooth)
+end
+
+local function mossTP()
+	if not MossV2.Enabled or not MossV2.BallTP or not HRP then return end
+	if tick() < MossV2.exemptUntil then return end
+	local ball, dist = mossBall()
+	if not ball or dist > MossV2.tpDist then return end
+	mossOwn(ball)
+	local cam = workspace.CurrentCamera
+	local fwd = (cam and cam.CFrame.LookVector) or HRP.CFrame.LookVector
+	local target = HRP.Position + Vector3.new(0, -0.6, 0) + fwd * 1.8
+	task.spawn(function()
+		for i = 1, 8 do
+			if not ball.Parent then break end
+			ball.CFrame = ball.CFrame:Lerp(CFrame.new(target), 0.25)
+			ball.AssemblyLinearVelocity = (target - ball.Position) * 12
+			task.wait(0.015)
+		end
+	end)
+end
+
+local function mossShoot()
+	if not MossV2.Enabled then return end
+	local tool = Character and Character:FindFirstChildOfClass("Tool")
+	if not tool then return end
+	if tick() >= MossV2.exemptUntil then mossMagnetTick() end
+	pcall(function() tool:Activate() end)
+	MossV2.exemptUntil = tick() + MossV2.shotCooldown
+	for i = 1, 4 do
+		task.delay(i * 0.015, function()
+			local t = Character and Character:FindFirstChildOfClass("Tool")
+			if t then pcall(function() t:Activate() end) end
+		end)
+	end
+end
+
+local function StartMossV2()
+	if MossV2.loop then return end
+	MossV2.Enabled = true
+	MossV2.loop = task.spawn(function()
+		while MossV2.Enabled do
+			pcall(mossMagnetTick)
+			task.wait(0.016)
+		end
+		MossV2.loop = nil
+	end)
+	MossV2.auto = task.spawn(function()
+		while MossV2.Enabled do
+			task.wait(0.04)
+			if MossV2.AutoShoot and tick() >= MossV2.exemptUntil then
+				local tool = Character and Character:FindFirstChildOfClass("Tool")
+				if tool then
+					local ball, dist = mossBall()
+					if ball and dist <= 12 then mossShoot() end
+				end
+			end
+		end
+		MossV2.auto = nil
+	end)
+end
+
+local function StopMossV2()
+	MossV2.Enabled = false
+	MossV2.loop = nil
+	MossV2.auto = nil
+end
+
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if input.KeyCode == MossV2.ToggleKey and MossV2.Enabled == false and false then end -- handled by toggle UI
+	if not MossV2.Enabled then return end
+	if input.KeyCode == MossV2.TPKey then mossTP(); return end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.KeyCode == Enum.KeyCode.Q then
+		mossShoot()
+	end
+end)
+
+UserInputService.JumpRequest:Connect(function()
+	if not MossV2.Enabled or not MossV2.Header or not HRP then return end
+	local head = Character and Character:FindFirstChild("Head")
+	if not head then return end
+	local ball, dist = mossBall()
+	if not ball or dist > MossV2.airRange then return end
+	local t0 = tick()
+	task.spawn(function()
+		while tick() - t0 < MossV2.headerDelay and MossV2.Enabled do
+			mossOwn(ball)
+			local target = head.Position + Vector3.new(0, 1.1, 0)
+			local cur = ball.AssemblyLinearVelocity
+			local want = (target - ball.Position) * 28
+			ball.AssemblyLinearVelocity = cur:Lerp(want, 0.45)
+			task.wait(0.015)
+		end
+		if MossV2.Enabled then
+			MossV2.exemptUntil = tick() + 0.85
+			mossOwn(ball)
+			local cam = workspace.CurrentCamera
+			local look = (cam and cam.CFrame.LookVector) or HRP.CFrame.LookVector
+			local dir = Vector3.new(look.X, 0, look.Z).Unit * MossV2.headerPower + Vector3.new(0, MossV2.headerUp, 0)
+			ball.CFrame = CFrame.new(head.Position + Vector3.new(0, 1.1, 0))
+			ball.AssemblyLinearVelocity = dir
+		end
+	end)
+end)
+
+
 -- TABS (exact Kaiven names + emoji-style icons)
 local playerTab = makeTab("Player", "👤")
 playerTab:Section("Reach", "Extends hitbox to touch ball")
@@ -1122,6 +1688,16 @@ gkTab:Toggle("Auto Dive", "Dives for you", false, function(v) if v then StartAut
 gkTab:Section("GK Helper", nil)
 gkTab:Toggle("GK Helper", "auto position to save shots", false, function(v) if v then StartGKHelper() else StopGKHelper() end end)
 
+
+gkTab:Section("Auto GK V2", "VRF AI style low/high dive + magnet")
+gkTab:Toggle("Auto GK V2", "Penalty/shot auto dive with magnet net", false, function(v)
+	if v then StartGKV2(); notify("Auto GK V2 ON", "good")
+	else StopGKV2(); notify("Auto GK V2 OFF", "warn") end
+end)
+gkTab:Slider("V2 Trigger Time", "Seconds before goal line to dive", 0.2, 1.2, 0.65, function(v) GKV2.TRIGGER = v end, " s")
+gkTab:Slider("V2 Cooldown", "Delay between saves", 0.3, 1.5, 0.80, function(v) GKV2.COOLDOWN = v end, " s")
+gkTab:Label("V2: strict low/high split + post-hit magnet")
+
 local autoTab = makeTab("Auto", "⚡")
 autoTab:Section("Auto Dribble", "Hotkey: K")
 autoTab:Toggle("Auto Dribble", "Enable/Disable Auto Dribble (use hotkey to toggle on/off)", false, function(v) AutoConfig.DribbleEnabled=v end)
@@ -1135,20 +1711,80 @@ autoTab:Section("Auto Moss", "Hotkey: M")
 autoTab:Toggle("Auto Moss", "Enable/Disable Auto Moss (use hotkey to toggle on/off)", false, function(v) AutoConfig.MossEnabled=v end)
 autoTab:Slider("Activation Dist", nil, 10, 100, 50, function(v) AutoConfig.MossActivationDist=v end, " studs")
 
+autoTab:Section("Moss V2", "Magnet + header + ball TP + shoot")
+autoTab:Toggle("Moss V2 Master", "Full moss engine (magnet/header/tp)", false, function(v)
+	if v then StartMossV2(); notify("Moss V2 ON", "good")
+	else StopMossV2(); notify("Moss V2 OFF", "warn") end
+end)
+autoTab:Toggle("Moss Magnet", "Pull ball toward you", true, function(v) MossV2.Magnet = v end)
+autoTab:Toggle("Moss Header Boost", "Jump = 200ms header lock", true, function(v) MossV2.Header = v end)
+autoTab:Toggle("Moss Auto Shoot", "Auto activate shoot tool near ball", true, function(v) MossV2.AutoShoot = v end)
+autoTab:Toggle("Moss Ball TP [V]", "V key teleports ball in front", true, function(v) MossV2.BallTP = v end)
+autoTab:Slider("Moss Magnet Range", "Ground magnet distance", 6, 30, 14, function(v) MossV2.magnetRange = v end, " studs")
+autoTab:Slider("Moss Air Range", "Air ball magnet distance", 10, 40, 22, function(v) MossV2.airRange = v end, " studs")
+autoTab:Label("Moss V2: V = ball TP | click/Q = shoot | jump = header")
+
+
+local aimTab = makeTab("Aimbot", "🎯")
+aimTab:Section("Aimbot Goal V1", "Corner velocity assist (ZEX style)")
+aimTab:Toggle("Enable V1", "Master switch for aimbot goal v1", false, function(v)
+	if v then StartAimbotV1(); notify("Aimbot Goal V1 ON", "good")
+	else StopAimbotV1(); notify("Aimbot Goal V1 OFF", "warn") end
+end)
+aimTab:Toggle("V1 Assist [V]", "Curve shots to far corners", false, function(v)
+	AimbotV1.Assist = v
+	if v and not AimbotV1.Enabled then StartAimbotV1() end
+	notify("V1 Assist " .. (v and "ON" or "OFF"), v and "good" or "warn")
+end)
+aimTab:Slider("V1 Strength", "Curve strength", 0.03, 0.30, 0.12, function(v) AimbotV1.Strength = v end, "")
+aimTab:Slider("V1 Min Speed", "Min ball speed to lock", 10, 60, 25, function(v) AimbotV1.MinSpeed = v end, "")
+aimTab:Label("V1: V = assist | T = swap net | far left/right only")
+
+aimTab:Section("Aimbot Goal V2", "TB-style auto bins + pass assist")
+aimTab:Toggle("Enable V2", "Master switch for aimbot goal v2", false, function(v)
+	if v then StartAimbotV2(); notify("Aimbot Goal V2 ON", "good")
+	else StopAimbotV2(); notify("Aimbot Goal V2 OFF", "warn") end
+end)
+aimTab:Toggle("V2 Auto Shot [J]", "Auto curve toward open corner", false, function(v)
+	AimbotV2.Auto = v
+	if v and not AimbotV2.Enabled then StartAimbotV2() end
+	notify("V2 Auto " .. (v and "ON" or "OFF"), v and "good" or "warn")
+end)
+aimTab:Toggle("V2 Pass Assist [K]", "Redirect passes to teammates", false, function(v)
+	AimbotV2.Pass = v
+	if v and not AimbotV2.Enabled then StartAimbotV2() end
+	notify("V2 Pass " .. (v and "ON" or "OFF"), v and "good" or "warn")
+end)
+aimTab:Slider("V2 Strength", "Auto curve strength", 0.05, 0.40, 0.18, function(v) AimbotV2.Strength = v end, "")
+aimTab:Label("V2: J = auto bins | K = pass assist")
+
 local miscTab = makeTab("Misc", "⚙")
 miscTab:Section("Utility", nil)
 miscTab:Button("Notify Test", true, function() notify("Valkyrie.ui online","good") end)
 miscTab:Button("Unload", false, function()
-	hide(); task.wait(0.2); StopRadar(); StopAutoSave(); StopGKHelper(); ClearDump()
-	pcall(function() ReachBox:Destroy() end); pcall(function() gui:Destroy() end); notify("Unloaded","warn",2)
+	task.spawn(function()
+		pcall(function() ReachConfig.Master = false end)
+		pcall(StopRadar); pcall(StopAutoSave); pcall(StopGKHelper); pcall(ClearDump)
+		pcall(StopAimbotV1); pcall(StopAimbotV2); pcall(StopGKV2); pcall(StopMossV2)
+		pcall(function() if BallPred then BallPred.Enabled = false end end)
+		pcall(function() CharSpeed.Enabled = false end)
+		pcall(function() AutoCatch.Enabled = false end)
+		pcall(function()
+			AutoConfig.DribbleEnabled = false
+			AutoConfig.GuardEnabled = false
+			AutoConfig.MossEnabled = false
+		end)
+		hide()
+		task.wait(0.15)
+		pcall(function() if ReachBox then ReachBox:Destroy() end end)
+		pcall(function() if orb then orb:Destroy() end end)
+		pcall(function() if mobileBar then mobileBar:Destroy() end end)
+		pcall(function() gui:Destroy() end)
+		notify("Unloaded", "warn", 2)
+	end)
 end)
 miscTab:Label("RightControl toggles menu. Mobile uses top bar + orb.")
 miscTab:Label("Paste this whole script into any executor while in game.")
-
-boot({"checking executor","loading reach","wiring gk systems","syncing theme","ready"}, function()
-	notify("Valkyrie.ui loaded","good")
-end)
-cTab:Label("Paste this whole script into any executor while in game.")
 
 boot({"checking executor","loading reach","wiring gk systems","syncing theme","ready"}, function()
 	notify("Valkyrie.ui loaded","good")
