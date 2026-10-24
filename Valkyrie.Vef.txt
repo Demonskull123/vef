@@ -147,13 +147,16 @@ local function drag(handle, target)
 	local dragging = false
 	local startMouse, startPos
 	handle.Active = true
+	handle.Selectable = true
 	handle.InputBegan:Connect(function(i)
 		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
 			dragging = true
 			startMouse = i.Position
 			startPos = target.AbsolutePosition
-			i.Changed:Connect(function()
-				if i.UserInputState == Enum.UserInputState.End then dragging = false end
+			pcall(function()
+				i.Changed:Connect(function()
+					if i.UserInputState == Enum.UserInputState.End then dragging = false end
+				end)
 			end)
 		end
 	end)
@@ -249,6 +252,7 @@ end)
 local top = bx(main, P.top, 4); top.BackgroundTransparency = 0.05; top.Size = UDim2.new(1,0,0,TOP)
 top.Active = true; top.Selectable = true
 drag(top, main); sheen(top, 5)
+-- also allow dragging from side rail (mobile-friendly whole UI)
 local hair = bx(top, P.line, 5); hair.Size = UDim2.new(1,0,0,1); hair.Position = UDim2.new(0,0,1,-1)
 grad(hair, P.accent, P.line, 0)
 local mark = drawMark(top, 26, 6); mark.Position = UDim2.fromOffset(12,11)
@@ -281,6 +285,8 @@ end
 
 local side = bx(main, P.rail, 3); side.BackgroundTransparency = 0.05
 side.Size = UDim2.new(0,SIDE,1,-TOP); side.Position = UDim2.new(0,0,0,TOP)
+side.Active = true
+drag(side, main)
 local sdiv = bx(side, P.line, 4); sdiv.Size = UDim2.new(0,1,1,0); sdiv.Position = UDim2.new(1,-1,0,0); grad(sdiv, P.accent, P.line, 90)
 
 local nav = Instance.new("ScrollingFrame"); nav.BackgroundTransparency = 1; nav.BorderSizePixel = 0
@@ -310,6 +316,8 @@ local om = drawMark(orb, ORB*0.58, 31); om.AnchorPoint = Vector2.new(0.5,0.5); o
 local mobileBar = bx(gui, P.top, 28); mobileBar.AnchorPoint = Vector2.new(0.5,0)
 mobileBar.Position = UDim2.new(0.5,0,0,12); mobileBar.Size = UDim2.fromOffset(230,42); mobileBar.ZIndex = 28
 mobileBar.Visible = isTouch(); corner(mobileBar,21); stroke(mobileBar, P.accent,1.3,0.25); glow(mobileBar, P.accent,2,2,21,0.48); sheen(mobileBar,29)
+mobileBar.Active = true
+drag(mobileBar, mobileBar)
 
 local function mBtn(label, x, col, fn)
 	local b = Instance.new("TextButton"); b.Size = UDim2.fromOffset(66,30); b.Position = UDim2.fromOffset(x,6)
@@ -602,6 +610,14 @@ local function GetNearestBall(root, maxDist)
 	return closest, closestDist
 end
 
+-- FEATURES (scoped to avoid Out of local registers)
+local InfJump = false
+local WalkSpeedValue = 19
+local RadarEnabled = false
+local RadarFrame = nil
+local SpoofTargetLimb = nil
+local FE = {}
+(function()
 -- REACH (Kaiven exact names — original working version)
 local ReachConfig = {Master=false, Visualizer=false, ReachX=6, ReachY=7, ReachZ=6, Shoot=true, Pass=true, Long=true, Tackle=true, Dribble=true, Save=true}
 local ReachBox = Instance.new("Part"); ReachBox.Name = tostring(math.random(100000,999999))
@@ -619,7 +635,7 @@ pcall(function()
 	end
 end)
 
-local SpoofTargetLimb = nil
+SpoofTargetLimb = nil
 local TargetLimbNames = {Head=true,HumanoidRootPart=true,LL=true,["Left Arm"]=true,["Left Leg"]=true,Legs=true,RL=true,["Right Arm"]=true,["Right Leg"]=true,Torso=true}
 local oldIndex
 oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
@@ -722,8 +738,8 @@ task.spawn(function()
 	end
 end)
 
-local RadarEnabled = false; local RadarConfig = {Size=200, MaxRange=150}
-local RadarGUI, RadarFrame; local RadarBlips, RadarBallBlips, RadarNameLabels, RadarLastPos = {},{},{},{}
+RadarEnabled = false; local RadarConfig = {Size=200, MaxRange=150}
+local RadarGUI; RadarFrame=nil; local RadarBlips, RadarBallBlips, RadarNameLabels, RadarLastPos = {},{},{},{}
 local RadarUpdateConnection
 local function CreateRadarGUI()
 	if RadarGUI then RadarGUI:Destroy() end
@@ -802,7 +818,7 @@ local function StopRadar()
 	if RadarGUI then RadarGUI:Destroy(); RadarGUI=nil end; RadarBlips,RadarBallBlips,RadarNameLabels,RadarLastPos={},{},{},{}
 end
 
-local CharSpeed = {Enabled=false, Value=0}; local InfJump=false; local WalkSpeedValue=19
+local CharSpeed = {Enabled=false, Value=0}; InfJump=false; WalkSpeedValue=19
 RunService.Heartbeat:Connect(function(dt)
 	if not (HRP and Humanoid and Character and Character.Parent) then return end
 	if CharSpeed.Enabled and Character.PrimaryPart then
@@ -1680,6 +1696,71 @@ local function StopPowerShotWatch()
 	if powerShotFallbackConn then pcall(function() powerShotFallbackConn:Disconnect() end); powerShotFallbackConn=nil end
 end
 
+
+	FE.ReachConfig = ReachConfig
+	FE.ReachBox = ReachBox
+	FE.BallPred = BallPred
+	FE.ClearDump = ClearDump
+	FE.RadarConfig = RadarConfig
+	FE.StartRadar = StartRadar
+	FE.StopRadar = StopRadar
+	FE.CharSpeed = CharSpeed
+	FE.AutoCatch = AutoCatch
+	FE.StartAutoSave = StartAutoSave
+	FE.StopAutoSave = StopAutoSave
+	FE.AutoSave = AutoSave
+	FE.GKHelper = GKHelper
+	FE.StartGKHelper = StartGKHelper
+	FE.StopGKHelper = StopGKHelper
+	FE.AutoConfig = AutoConfig
+	FE.AimbotV1 = AimbotV1
+	FE.StartAimbotV1 = StartAimbotV1
+	FE.StopAimbotV1 = StopAimbotV1
+	FE.AimbotV2 = AimbotV2
+	FE.StartAimbotV2 = StartAimbotV2
+	FE.StopAimbotV2 = StopAimbotV2
+	FE.GKV2 = GKV2
+	FE.StartGKV2 = StartGKV2
+	FE.StopGKV2 = StopGKV2
+	FE.MossV2 = MossV2
+	FE.StartMossV2 = StartMossV2
+	FE.StopMossV2 = StopMossV2
+	FE.PowerShot = PowerShot
+	FE.StartPowerShotWatch = StartPowerShotWatch
+	FE.StopPowerShotWatch = StopPowerShotWatch
+end)()
+local ReachConfig = FE.ReachConfig
+local ReachBox = FE.ReachBox
+local BallPred = FE.BallPred
+local ClearDump = FE.ClearDump
+local RadarConfig = FE.RadarConfig
+local StartRadar = FE.StartRadar
+local StopRadar = FE.StopRadar
+local CharSpeed = FE.CharSpeed
+local AutoCatch = FE.AutoCatch
+local StartAutoSave = FE.StartAutoSave
+local StopAutoSave = FE.StopAutoSave
+local AutoSave = FE.AutoSave
+local GKHelper = FE.GKHelper
+local StartGKHelper = FE.StartGKHelper
+local StopGKHelper = FE.StopGKHelper
+local AutoConfig = FE.AutoConfig
+local AimbotV1 = FE.AimbotV1
+local StartAimbotV1 = FE.StartAimbotV1
+local StopAimbotV1 = FE.StopAimbotV1
+local AimbotV2 = FE.AimbotV2
+local StartAimbotV2 = FE.StartAimbotV2
+local StopAimbotV2 = FE.StopAimbotV2
+local GKV2 = FE.GKV2
+local StartGKV2 = FE.StartGKV2
+local StopGKV2 = FE.StopGKV2
+local MossV2 = FE.MossV2
+local StartMossV2 = FE.StartMossV2
+local StopMossV2 = FE.StopMossV2
+local PowerShot = FE.PowerShot
+local StartPowerShotWatch = FE.StartPowerShotWatch
+local StopPowerShotWatch = FE.StopPowerShotWatch
+
 -- TABS (exact Kaiven names + emoji-style icons)
 local playerTab = makeTab("Player", "👤")
 playerTab:Section("Reach", "Extends hitbox to touch ball")
@@ -1826,7 +1907,7 @@ aimTab:Label("V2: J = auto bins | K = pass assist")
 
 -- SETTINGS / KEYBINDS / MOBILE
 local S = {
-	Keybinds={}, Listen=nil, Features={}, MSize=48, MTrans=0.15, MLock=false, MShow=true, MBtns={}, MLayer=nil,
+	Keybinds={}, Listen=nil, Features={}, MobileOn={}, MSize=48, MTrans=0.15, MLock=false, MShow=true, MBtns={}, MLayer=nil,
 }
 S.MLayer = fr(gui, 50); S.MLayer.Size=UDim2.fromScale(1,1); S.MLayer.ZIndex=50
 local function S_reg(id, label, getf, setf)
@@ -1917,7 +1998,9 @@ local function S_rebuildMobile()
 	for id in pairs(S.MBtns) do S_kill(id) end
 	if not S.MShow then return end
 	for _,f in ipairs(S.Features) do
-		if f.id~="menu" then S_makeBtn(f.id, f.label, function() S_toggle(f.id) end) end
+		if f.id~="menu" and S.MobileOn[f.id] then
+			S_makeBtn(f.id, f.label, function() S_toggle(f.id) end)
+		end
 	end
 end
 
@@ -1974,16 +2057,38 @@ S_reg("menu","Toggle Menu",function() return main.Visible end,function(v)
 end)
 
 local settingsTab = makeTab("Settings", "⚙")
-settingsTab:Section("Mobile Buttons", "Size · lock · transparency · show")
-settingsTab:Toggle("Show Mobile Buttons", "Toggle floating feature buttons", true, function(v)
+settingsTab:Section("Mobile Buttons", "Size · lock · transparency · master show")
+settingsTab:Toggle("Show Mobile Buttons", "Master switch for floating buttons", true, function(v)
 	S.MShow=v; S_rebuildMobile()
 end)
 settingsTab:Toggle("Lock Buttons", "Freeze position (no drag)", false, function(v) S.MLock=v end)
 settingsTab:Slider("Button Size", "Mobile button pixel size", 32, 80, 48, function(v) S.MSize=v; S_lookAll() end, " px")
 settingsTab:Slider("Button Transparency", "0 solid · 1 invisible", 0, 0.85, 0.15, function(v) S.MTrans=v; S_lookAll() end, "")
 settingsTab:Button("Rebuild Mobile Buttons", false, function() S_rebuildMobile(); notify("Mobile buttons rebuilt","good") end)
+settingsTab:Section("Which Features Get a Button", "Toggle on only what you want on screen")
+for _,f in ipairs(S.Features) do
+	if f.id ~= "menu" then
+		local fid, flabel = f.id, f.label
+		settingsTab:Toggle("Btn · "..flabel, "Show a mobile button for "..flabel, false, function(v)
+			S.MobileOn[fid] = v
+			S_rebuildMobile()
+		end)
+	end
+end
+settingsTab:Button("Enable All Feature Buttons", false, function()
+	for _,f in ipairs(S.Features) do
+		if f.id ~= "menu" then S.MobileOn[f.id] = true end
+	end
+	S_rebuildMobile()
+	notify("All feature buttons on", "good")
+end)
+settingsTab:Button("Clear All Feature Buttons", false, function()
+	table.clear(S.MobileOn)
+	S_rebuildMobile()
+	notify("All feature buttons off", "warn")
+end)
 settingsTab:Section("Keybinds", "Click Bind, press a key. Esc clears.")
-settingsTab:Label("Every feature can be hotkeyed. Mobile buttons mirror the same list.")
+settingsTab:Label("Every feature can be hotkeyed.")
 for _,f in ipairs(S.Features) do
 	local fid,flabel=f.id,f.label
 	settingsTab:Button("Bind: "..flabel.."  ["..S_keyName(fid).."]", false, function()
@@ -1999,6 +2104,25 @@ task.defer(function() task.wait(0.5); S_rebuildMobile() end)
 local miscTab = makeTab("Misc", "M")
 miscTab:Section("Utility", nil)
 miscTab:Button("Notify Test", true, function() notify("Valkyrie.ui online","good") end)
+miscTab:Section("Scripts", "Load extra tools in-game")
+miscTab:Button("Load Custom Controls", true, function()
+	task.spawn(function()
+		local ok, err = pcall(function()
+			local src = game:HttpGet("https://scriptblox.com/raw/Universal-Script-Custom-controls-215266")
+			assert(type(src)=="string" and #src > 50, "empty response")
+			local fn, cerr = (loadstring or load)(src)
+			assert(fn, tostring(cerr))
+			fn()
+		end)
+		if ok then
+			notify("Custom Controls loaded", "good")
+		else
+			notify("Controls failed · " .. tostring(err):sub(1, 48), "bad")
+		end
+	end)
+end)
+miscTab:Label("Custom Controls: mobile touch pads / extra binds from scriptblox.")
+miscTab:Section("Unload", nil)
 miscTab:Button("Unload", false, function()
 	task.spawn(function()
 		pcall(function() ReachConfig.Master = false end)
