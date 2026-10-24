@@ -1908,6 +1908,7 @@ aimTab:Label("V2: J = auto bins | K = pass assist")
 -- SETTINGS / KEYBINDS / MOBILE
 local S = {
 	Keybinds={}, Listen=nil, Features={}, MobileOn={}, MSize=48, MTrans=0.15, MLock=false, MShow=true, MBtns={}, MLayer=nil,
+	ShowCatchBtns=true, ShowRmbBtn=true, ShowDropBtn=true,
 }
 S.MLayer = fr(gui, 50); S.MLayer.Size=UDim2.fromScale(1,1); S.MLayer.ZIndex=50
 local function S_reg(id, label, getf, setf)
@@ -2002,6 +2003,96 @@ local function S_rebuildMobile()
 			S_makeBtn(f.id, f.label, function() S_toggle(f.id) end)
 		end
 	end
+	-- always-available action buttons (catch + rmb) if enabled
+	if S.ShowCatchBtns then
+		S_makeBtn("_highcatch", "HiCatch", function()
+			if not HRP then return end
+			local ball = GetNearestBall and GetNearestBall(HRP, AutoCatch.Range or 25)
+			if ball and ToolManagment then
+				pcall(function() ToolManagment.atac(ToolManagment, ball, "High Catch") end)
+			else
+				pcall(function()
+					VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.R, false, game)
+					task.wait(0.05)
+					VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.R, false, game)
+				end)
+			end
+			notify("High Catch", "good", 1)
+		end)
+		S_makeBtn("_lowcatch", "LoCatch", function()
+			if not HRP then return end
+			local ball = GetNearestBall and GetNearestBall(HRP, AutoCatch.Range or 25)
+			if ball and ToolManagment then
+				pcall(function() ToolManagment.atac(ToolManagment, ball, "Low Catch") end)
+			else
+				pcall(function()
+					VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+					task.wait(0.05)
+					VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+				end)
+			end
+			notify("Low Catch", "good", 1)
+		end)
+	end
+	if S.ShowDropBtn then
+		S_makeBtn("_drop", "DROP", function()
+			pcall(function()
+				VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.G, false, game)
+				task.wait(0.05)
+				VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.G, false, game)
+			end)
+			notify("Drop (G)", "good", 1)
+		end)
+	end
+	if S.ShowRmbBtn then
+		-- special hold/tap right-click button
+		S_kill("_rmb")
+		if S.MShow then
+			local s = S.MSize
+			local b = Instance.new("TextButton")
+			b.Name = "MB__rmb"
+			b.Size = UDim2.fromOffset(s, s)
+			b.Position = UDim2.new(0, 16, 0.72, 0)
+			b.Text = "RMB"
+			b.ZIndex = 55
+			b.Parent = S.MLayer
+			S_style(b)
+			local holding = false
+			local function rmbDown()
+				if holding then return end
+				holding = true
+				local pos = UserInputService:GetMouseLocation()
+				pcall(function()
+					VirtualInputManager:SendMouseButtonEvent(pos.X, pos.Y, 1, true, game, 0)
+				end)
+			end
+			local function rmbUp()
+				if not holding then return end
+				holding = false
+				local pos = UserInputService:GetMouseLocation()
+				pcall(function()
+					VirtualInputManager:SendMouseButtonEvent(pos.X, pos.Y, 1, false, game, 0)
+				end)
+			end
+			b.InputBegan:Connect(function(i)
+				if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+					rmbDown()
+				end
+			end)
+			b.InputEnded:Connect(function(i)
+				if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+					rmbUp()
+				end
+			end)
+			UserInputService.InputEnded:Connect(function(i)
+				if holding and (i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch) then
+					rmbUp()
+				end
+			end)
+			-- drag when not locking (same as other btns) — skip drag on RMB so hold works cleanly
+			S.MBtns["_rmb"] = {btn=b, label="RMB"}
+		end
+	end
 end
 
 
@@ -2060,6 +2151,15 @@ local settingsTab = makeTab("Settings", "⚙")
 settingsTab:Section("Mobile Buttons", "Size · lock · transparency · master show")
 settingsTab:Toggle("Show Mobile Buttons", "Master switch for floating buttons", true, function(v)
 	S.MShow=v; S_rebuildMobile()
+end)
+settingsTab:Toggle("High / Low Catch Buttons", "On-screen HiCatch + LoCatch", true, function(v)
+	S.ShowCatchBtns=v; S_rebuildMobile()
+end)
+settingsTab:Toggle("Right Click Button", "Hold or tap = mouse 2 (RMB)", true, function(v)
+	S.ShowRmbBtn=v; S_rebuildMobile()
+end)
+settingsTab:Toggle("Drop Button (G)", "On-screen DROP = G key", true, function(v)
+	S.ShowDropBtn=v; S_rebuildMobile()
 end)
 settingsTab:Toggle("Lock Buttons", "Freeze position (no drag)", false, function(v) S.MLock=v end)
 settingsTab:Slider("Button Size", "Mobile button pixel size", 32, 80, 48, function(v) S.MSize=v; S_lookAll() end, " px")
