@@ -515,6 +515,73 @@ local function makeTab(name, icon)
 			if cb then pcall(cb) end
 		end)
 	end
+	function tab:TextInput(label, placeholder, default, cb)
+		rows += 1
+		local r = rowBase(56)
+		local l2 = tx(r, label, F_S, 13, P.text); l2.Size = UDim2.new(1,-20,0,16); l2.Position = UDim2.fromOffset(16,6); l2.ZIndex = 5
+		local box = Instance.new("TextBox")
+		box.Size = UDim2.new(1,-32,0,24); box.Position = UDim2.fromOffset(16,28)
+		box.BackgroundColor3 = P.off; box.BorderSizePixel = 0; box.Text = default or ""
+		box.PlaceholderText = placeholder or ""; box.FontFace = F_R; box.TextSize = 12
+		box.TextColor3 = P.text; box.PlaceholderColor3 = P.faint; box.ClearTextOnFocus = false
+		box.ZIndex = 6; box.Parent = r; corner(box, 8); stroke(box, P.line, 1, 0.4)
+		box.FocusLost:Connect(function(enter)
+			if cb then pcall(cb, box.Text) end
+		end)
+		return {Set=function(_,v) box.Text=tostring(v or"") end, Get=function() return box.Text end}
+	end
+	function tab:Dropdown(label, options, default, cb)
+		rows += 1
+		local opts = options or {}
+		local cur = default or (opts[1] or "")
+		local open = false
+		local r = rowBase(52)
+		local l2 = tx(r, label, F_S, 13, P.text); l2.Size = UDim2.new(0.45,-8,0,18); l2.Position = UDim2.fromOffset(16,16); l2.ZIndex = 5
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(0.55,-20,0,28); btn.Position = UDim2.new(0.45,0,0.5,-14)
+		btn.BackgroundColor3 = P.off; btn.AutoButtonColor = false; btn.BorderSizePixel = 0
+		btn.Text = "  "..tostring(cur).."  v"; btn.FontFace = F_S; btn.TextSize = 12
+		btn.TextColor3 = P.text; btn.TextXAlignment = Enum.TextXAlignment.Left
+		btn.ZIndex = 6; btn.Parent = r; corner(btn, 8); stroke(btn, P.line, 1, 0.35)
+		local list = bx(page, P.panel, 40)
+		list.Size = UDim2.new(1,-24,0,0); list.Position = UDim2.fromOffset(12,0)
+		list.Visible = false; list.ClipsDescendants = true; corner(list, 10); stroke(list, P.accent, 1.2, 0.35)
+		local scroll = Instance.new("ScrollingFrame")
+		scroll.BackgroundTransparency = 1; scroll.Size = UDim2.new(1,-6,1,-6); scroll.Position = UDim2.fromOffset(3,3)
+		scroll.ScrollBarThickness = 3; scroll.ScrollBarImageColor3 = P.accent; scroll.BorderSizePixel = 0
+		scroll.ZIndex = 41; scroll.Parent = list
+		local lay = Instance.new("UIListLayout"); lay.Padding = UDim.new(0,2); lay.Parent = scroll
+		local function close()
+			open = false
+			tw(list, 0.18, {Size = UDim2.new(1,-24,0,0)}, Enum.EasingStyle.Quint)
+			task.delay(0.18, function() if list.Parent then list.Visible = false end end)
+		end
+		local function pick(v)
+			cur = v; btn.Text = "  "..tostring(v).."  v"; close()
+			if cb then pcall(cb, v) end
+		end
+		for _, opt in ipairs(opts) do
+			local ob = Instance.new("TextButton")
+			ob.Size = UDim2.new(1,-4,0,28); ob.BackgroundColor3 = P.card; ob.BackgroundTransparency = 0.3
+			ob.AutoButtonColor = false; ob.BorderSizePixel = 0; ob.Text = "  "..tostring(opt)
+			ob.FontFace = F_R; ob.TextSize = 12; ob.TextColor3 = P.text; ob.TextXAlignment = Enum.TextXAlignment.Left
+			ob.ZIndex = 42; ob.Parent = scroll; corner(ob, 6)
+			ob.MouseEnter:Connect(function() tw(ob,0.1,{BackgroundTransparency=0.05, BackgroundColor3=P.cardHov}) end)
+			ob.MouseLeave:Connect(function() tw(ob,0.1,{BackgroundTransparency=0.3, BackgroundColor3=P.card}) end)
+			ob.MouseButton1Click:Connect(function() pick(opt) end)
+		end
+		scroll.CanvasSize = UDim2.new(0,0,0, #opts * 30)
+		btn.MouseButton1Click:Connect(function()
+			if open then close(); return end
+			open = true; list.Visible = true
+			local abs = r.AbsolutePosition; local par = page.AbsolutePosition
+			list.Position = UDim2.fromOffset(12, abs.Y - par.Y + r.AbsoluteSize.Y + page.CanvasPosition.Y + 4)
+			local h = math.min(#opts * 30 + 8, 180)
+			list.Size = UDim2.new(1,-24,0,0)
+			tw(list, 0.22, {Size = UDim2.new(1,-24,0,h)}, Enum.EasingStyle.Quint)
+		end)
+		return {Set=function(_,v) cur=v; btn.Text="  "..tostring(v).."  v" end, Get=function() return cur end}
+	end
 	return tab
 end
 
@@ -1896,34 +1963,24 @@ visualsTab:Toggle("Enable Skybox", "Apply custom sky locally", false, function(v
 		if SkyboxCfg.OriginalSky then SkyboxCfg.OriginalSky.Parent = SkyboxCfg.OriginalSkyParent or Lighting end
 	end
 end)
-local skyIdx = 1
-for i,n in ipairs(SKY_NAMES) do if n == SkyboxCfg.Current then skyIdx = i end end
-visualsTab:Button("Next Skybox", true, function()
-	skyIdx = (skyIdx % #SKY_NAMES) + 1
-	SkyboxCfg.Current = SKY_NAMES[skyIdx]
-	if SkyboxCfg.Enabled then ApplySkybox(SkyboxCfg.Current) end
-	notify("Sky: "..SkyboxCfg.Current, "good", 1.5)
-end)
-visualsTab:Button("Prev Skybox", false, function()
-	skyIdx = skyIdx - 2; if skyIdx < 0 then skyIdx = #SKY_NAMES - 1 end
-	skyIdx = (skyIdx % #SKY_NAMES) + 1
-	SkyboxCfg.Current = SKY_NAMES[skyIdx]
-	if SkyboxCfg.Enabled then ApplySkybox(SkyboxCfg.Current) end
-	notify("Sky: "..SkyboxCfg.Current, "good", 1.5)
+visualsTab:Dropdown("Select Skybox", SKY_NAMES, SkyboxCfg.Current or "Default", function(v)
+	SkyboxCfg.Current = v
+	if SkyboxCfg.Enabled then ApplySkybox(v) end
+	notify("Sky: "..v, "good", 1.5)
 end)
 visualsTab:Button("Random Skybox", false, function()
-	skyIdx = math.random(2, #SKY_NAMES)
-	SkyboxCfg.Current = SKY_NAMES[skyIdx]
-	if SkyboxCfg.Enabled then ApplySkybox(SkyboxCfg.Current) end
-	notify("Sky: "..SkyboxCfg.Current, "good", 1.5)
+	local v = SKY_NAMES[math.random(2, #SKY_NAMES)]
+	SkyboxCfg.Current = v
+	if SkyboxCfg.Enabled then ApplySkybox(v) end
+	notify("Sky: "..v, "good", 1.5)
 end)
 visualsTab:Button("Reset Skybox", false, function()
 	RemoveCustomSky()
 	if SkyboxCfg.OriginalSky then SkyboxCfg.OriginalSky.Parent = SkyboxCfg.OriginalSkyParent or Lighting end
-	SkyboxCfg.Current = "Default"; skyIdx = 1
+	SkyboxCfg.Current = "Default"
 	notify("Sky reset", "warn")
 end)
-visualsTab:Label("Presets: Space · Nebula · Galaxy · Sunset · Storm · Heaven + more")
+visualsTab:Label("Pick any preset from the dropdown.")
 visualsTab:Toggle("Custom Time of Day", "Lock clock time", false, function(v)
 	TimeOfDayCfg.Enabled = v
 	if v then Lighting.ClockTime = TimeOfDayCfg.Value end
@@ -2209,7 +2266,6 @@ local function S_deserializeKeybinds(t)
 	end
 end
 local function S_collectConfig()
-	-- snapshot current mobile positions
 	S.MPos = S.MPos or {}
 	for id, e in pairs(S.MBtns) do
 		if e.btn and e.btn.Parent then
@@ -2222,7 +2278,7 @@ local function S_collectConfig()
 		if ok then features[f.id] = val end
 	end
 	return {
-		version = 1,
+		version = 2,
 		MSize = S.MSize,
 		MTrans = S.MTrans,
 		MLock = S.MLock,
@@ -2233,6 +2289,34 @@ local function S_collectConfig()
 		MPos = S.MPos,
 		Keybinds = S_serializeKeybinds(),
 		Features = features,
+		Reach = ReachConfig and {
+			Master=ReachConfig.Master, Visualizer=ReachConfig.Visualizer,
+			ReachX=ReachConfig.ReachX, ReachY=ReachConfig.ReachY, ReachZ=ReachConfig.ReachZ,
+			Shoot=ReachConfig.Shoot, Pass=ReachConfig.Pass, Long=ReachConfig.Long,
+			Tackle=ReachConfig.Tackle, Dribble=ReachConfig.Dribble, Save=ReachConfig.Save,
+		} or nil,
+		BallPred = BallPred and {Enabled=BallPred.Enabled, Threshold=BallPred.Threshold, Accuracy=BallPred.Accuracy} or nil,
+		CharSpeed = CharSpeed and {Enabled=CharSpeed.Enabled, Value=CharSpeed.Value} or nil,
+		AutoCatch = AutoCatch and {Enabled=AutoCatch.Enabled, Range=AutoCatch.Range, Cooldown=AutoCatch.Cooldown, CatchType=AutoCatch.CatchType, ManualEnabled=AutoCatch.ManualEnabled} or nil,
+		AutoSave = AutoSave and {Enabled=AutoSave.Enabled} or nil,
+		GKHelper = GKHelper and {Enabled=GKHelper.Enabled} or nil,
+		GKV2 = GKV2 and {Enabled=GKV2.Enabled, TRIGGER=GKV2.TRIGGER, COOLDOWN=GKV2.COOLDOWN} or nil,
+		AutoConfig = AutoConfig and {
+			DribbleEnabled=AutoConfig.DribbleEnabled, DribbleRadius=AutoConfig.DribbleRadius, DribblePred=AutoConfig.DribblePred,
+			GuardEnabled=AutoConfig.GuardEnabled, GuardStopDist=AutoConfig.GuardStopDist, GuardPred=AutoConfig.GuardPred,
+			MossEnabled=AutoConfig.MossEnabled, MossActivationDist=AutoConfig.MossActivationDist,
+		} or nil,
+		MossV2 = MossV2 and {
+			Enabled=MossV2.Enabled, Magnet=MossV2.Magnet, Header=MossV2.Header, AutoShoot=MossV2.AutoShoot, BallTP=MossV2.BallTP,
+			magnetRange=MossV2.magnetRange, airRange=MossV2.airRange,
+		} or nil,
+		AimbotV1 = AimbotV1 and {Enabled=AimbotV1.Enabled, Assist=AimbotV1.Assist, Strength=AimbotV1.Strength, MinSpeed=AimbotV1.MinSpeed} or nil,
+		AimbotV2 = AimbotV2 and {Enabled=AimbotV2.Enabled, Auto=AimbotV2.Auto, Pass=AimbotV2.Pass, Strength=AimbotV2.Strength} or nil,
+		PowerShot = PowerShot and {
+			Enabled=PowerShot.Enabled, Multiplier=PowerShot.Multiplier, MaxVel=PowerShot.MaxVel, SwapDelayMs=PowerShot.SwapDelayMs,
+			Moves=PowerShot.Moves,
+		} or nil,
+		Radar = {Enabled=RadarEnabled, Size=RadarConfig and RadarConfig.Size, MaxRange=RadarConfig and RadarConfig.MaxRange},
 		Sky = {
 			Enabled = SkyboxCfg and SkyboxCfg.Enabled or false,
 			Current = SkyboxCfg and SkyboxCfg.Current or "Default",
@@ -2252,6 +2336,30 @@ local function S_applyConfig(data)
 	if type(data.MobileOn) == "table" then S.MobileOn = data.MobileOn end
 	if type(data.MPos) == "table" then S.MPos = data.MPos end
 	if data.Keybinds then S_deserializeKeybinds(data.Keybinds) end
+	local function merge(dst, src)
+		if type(dst)~="table" or type(src)~="table" then return end
+		for k,v in pairs(src) do
+			if type(v)=="table" and type(dst[k])=="table" then merge(dst[k], v) else dst[k]=v end
+		end
+	end
+	if data.Reach and ReachConfig then merge(ReachConfig, data.Reach) end
+	if data.BallPred and BallPred then merge(BallPred, data.BallPred) end
+	if data.CharSpeed and CharSpeed then merge(CharSpeed, data.CharSpeed) end
+	if data.AutoCatch and AutoCatch then merge(AutoCatch, data.AutoCatch) end
+	if data.AutoSave and AutoSave then merge(AutoSave, data.AutoSave) end
+	if data.GKHelper and GKHelper then merge(GKHelper, data.GKHelper) end
+	if data.GKV2 and GKV2 then merge(GKV2, data.GKV2) end
+	if data.AutoConfig and AutoConfig then merge(AutoConfig, data.AutoConfig) end
+	if data.MossV2 and MossV2 then merge(MossV2, data.MossV2) end
+	if data.AimbotV1 and AimbotV1 then merge(AimbotV1, data.AimbotV1) end
+	if data.AimbotV2 and AimbotV2 then merge(AimbotV2, data.AimbotV2) end
+	if data.PowerShot and PowerShot then merge(PowerShot, data.PowerShot) end
+	if data.Radar then
+		if data.Radar.Size and RadarConfig then RadarConfig.Size = data.Radar.Size end
+		if data.Radar.MaxRange and RadarConfig then RadarConfig.MaxRange = data.Radar.MaxRange end
+		if data.Radar.Enabled then RadarEnabled=true; pcall(StartRadar) else pcall(StopRadar) end
+	end
+	-- feature toggles last so Start/Stop functions fire
 	if type(data.Features) == "table" then
 		for _, f in ipairs(S.Features) do
 			if data.Features[f.id] ~= nil then
@@ -2365,57 +2473,70 @@ S_reg("menu","Toggle Menu",function() return main.Visible end,function(v)
 	if v then show() else hide() end
 end)
 
-local settingsTab = makeTab("Settings", "⚙")
-settingsTab:Section("Mobile Buttons", "Size · lock · transparency · master show")
-settingsTab:Toggle("Show Mobile Buttons", "Master switch for floating buttons", true, function(v)
+
+local mobileSetTab = makeTab("Mobile", "📱")
+mobileSetTab:Section("Mobile Buttons", "Size · lock · transparency · master")
+mobileSetTab:Toggle("Show Mobile Buttons", "Master switch for floating buttons", true, function(v)
 	S.MShow=v; S_rebuildMobile()
 end)
-settingsTab:Toggle("High / Low Catch Buttons", "On-screen HiCatch + LoCatch", true, function(v)
+mobileSetTab:Toggle("High / Low Catch Buttons", "On-screen HiCatch + LoCatch", true, function(v)
 	S.ShowCatchBtns=v; S_rebuildMobile()
 end)
-settingsTab:Toggle("Lock Buttons", "Freeze position (no drag)", false, function(v) S.MLock=v end)
-settingsTab:Slider("Button Size", "Mobile button pixel size", 32, 80, 48, function(v) S.MSize=v; S_lookAll() end, " px")
-settingsTab:Slider("Button Transparency", "0 solid · 1 invisible", 0, 0.85, 0.15, function(v) S.MTrans=v; S_lookAll() end, "")
-settingsTab:Button("Rebuild Mobile Buttons", false, function() S_rebuildMobile(); notify("Mobile buttons rebuilt","good") end)
-settingsTab:Section("Which Features Get a Button", "Toggle on only what you want on screen")
+mobileSetTab:Toggle("Lock Buttons", "Freeze position (no drag)", false, function(v) S.MLock=v end)
+mobileSetTab:Slider("Button Size", "Mobile button pixel size", 32, 80, 48, function(v) S.MSize=v; S_lookAll() end, " px")
+mobileSetTab:Slider("Button Transparency", "0 solid · 1 invisible", 0, 0.85, 0.15, function(v) S.MTrans=v; S_lookAll() end, "")
+mobileSetTab:Button("Rebuild Mobile Buttons", false, function() S_rebuildMobile(); notify("Mobile buttons rebuilt","good") end)
+mobileSetTab:Section("Which Features Get a Button", "Toggle on only what you want on screen")
 for _,f in ipairs(S.Features) do
 	if f.id ~= "menu" then
 		local fid, flabel = f.id, f.label
-		settingsTab:Toggle("Btn · "..flabel, "Show a mobile button for "..flabel, false, function(v)
+		mobileSetTab:Toggle("Btn · "..flabel, "Show a mobile button for "..flabel, false, function(v)
 			S.MobileOn[fid] = v
 			S_rebuildMobile()
 		end)
 	end
 end
-settingsTab:Button("Enable All Feature Buttons", false, function()
+mobileSetTab:Button("Enable All Feature Buttons", false, function()
 	for _,f in ipairs(S.Features) do
 		if f.id ~= "menu" then S.MobileOn[f.id] = true end
 	end
 	S_rebuildMobile()
 	notify("All feature buttons on", "good")
 end)
-settingsTab:Button("Clear All Feature Buttons", false, function()
+mobileSetTab:Button("Clear All Feature Buttons", false, function()
 	table.clear(S.MobileOn)
 	S_rebuildMobile()
 	notify("All feature buttons off", "warn")
 end)
-settingsTab:Section("Configs", "Save · load · auto on inject")
-settingsTab:Toggle("Auto Load Config", "Load default config on script start", true, function(v)
+
+local pcSetTab = makeTab("PC", "🖥")
+pcSetTab:Section("Keybinds", "Click Bind, press a key. Esc clears.")
+pcSetTab:Label("Every feature can be hotkeyed on keyboard.")
+for _,f in ipairs(S.Features) do
+	local fid,flabel=f.id,f.label
+	pcSetTab:Button("Bind: "..flabel.."  ["..S_keyName(fid).."]", false, function()
+		S.Listen=fid; notify("Press a key for "..flabel.." (Esc=clear)","warn",4)
+	end)
+end
+pcSetTab:Section("Keybind Utils", nil)
+pcSetTab:Button("Clear All Keybinds", false, function() table.clear(S.Keybinds); notify("All keybinds cleared","warn") end)
+pcSetTab:Label("RightControl still toggles the main menu window.")
+
+local configTab = makeTab("Config", "💾")
+configTab:Section("Named Configs", "Save everything you have on — reach, sliders, GK, sky…")
+configTab:TextInput("Config Name", "e.g. mobile_gk", S.ConfigName or "default", function(t)
+	if t and t ~= "" then S.ConfigName = t end
+end)
+configTab:Toggle("Auto Load On Inject", "Load this name when script starts", true, function(v)
 	S.AutoLoadConfig = v
 end)
-settingsTab:Button("Save Config", true, function()
+configTab:Button("Save Config", true, function()
 	S_saveConfig(S.ConfigName or "default")
 end)
-settingsTab:Button("Load Config", false, function()
+configTab:Button("Load Config", false, function()
 	S_loadConfig(S.ConfigName or "default")
 end)
-settingsTab:Button("Save As: mobile", false, function()
-	S_saveConfig("mobile")
-end)
-settingsTab:Button("Load: mobile", false, function()
-	S_loadConfig("mobile")
-end)
-settingsTab:Button("Save Positions Only", false, function()
+configTab:Button("Save Positions Only", false, function()
 	S.MPos = S.MPos or {}
 	for id, e in pairs(S.MBtns) do
 		if e.btn and e.btn.Parent then
@@ -2424,18 +2545,14 @@ settingsTab:Button("Save Positions Only", false, function()
 	end
 	S_saveConfig(S.ConfigName or "default")
 end)
-settingsTab:Label("Configs store: features, keybinds, mobile buttons, positions, size, sky.")
-settingsTab:Section("Keybinds", "Click Bind, press a key. Esc clears.")
-settingsTab:Label("Every feature can be hotkeyed.")
-for _,f in ipairs(S.Features) do
-	local fid,flabel=f.id,f.label
-	settingsTab:Button("Bind: "..flabel.."  ["..S_keyName(fid).."]", false, function()
-		S.Listen=fid; notify("Press a key for "..flabel.." (Esc=clear)","warn",4)
-	end)
-end
-settingsTab:Section("Keybind Utils", nil)
-settingsTab:Button("Clear All Keybinds", false, function() table.clear(S.Keybinds); notify("All keybinds cleared","warn") end)
-settingsTab:Label("RightControl still toggles the main menu window.")
+configTab:Section("Quick Slots", "One-tap save/load")
+configTab:Button("Save → slot1", false, function() S_saveConfig("slot1") end)
+configTab:Button("Load ← slot1", false, function() S_loadConfig("slot1") end)
+configTab:Button("Save → slot2", false, function() S_saveConfig("slot2") end)
+configTab:Button("Load ← slot2", false, function() S_loadConfig("slot2") end)
+configTab:Button("Save → mobile", false, function() S_saveConfig("mobile") end)
+configTab:Button("Load ← mobile", false, function() S_loadConfig("mobile") end)
+configTab:Label("Saves: toggles, reach X/Y/Z, sliders, PowerShot, aim, GK, moss, radar, sky, keybinds, mobile layout.")
 task.defer(function()
 	task.wait(0.6)
 	if S.AutoLoadConfig then
@@ -2443,7 +2560,6 @@ task.defer(function()
 	end
 	S_rebuildMobile()
 end)
-
 
 local miscTab = makeTab("Misc", "M")
 miscTab:Section("Utility", nil)
