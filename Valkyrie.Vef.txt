@@ -194,19 +194,19 @@ local main = bx(gui, P.panel, 2)
 main.BackgroundTransparency = 0.12; main.Name = "Main"; main.Size = UDim2.fromOffset(W,H)
 main.AnchorPoint = Vector2.new(0.5,0.5); main.Position = UDim2.fromScale(0.5,0.5)
 main.Visible = false; main.ClipsDescendants = true; main.Active = true
-corner(main, 14); local mainStroke = stroke(main, P.accent, 1.6, 0.35)
-glow(main, P.accent, 3, 4, 14, 0.45); sheen(main, 3)
+corner(main, 20); local mainStroke = stroke(main, P.accent, 1.6, 0.35)
+glow(main, P.accent, 3, 4, 20, 0.45); sheen(main, 3)
 
 local field = fr(main, 2); field.Size = UDim2.fromScale(1,1); field.ZIndex = 2; field.ClipsDescendants = true
 local function skyLayer(z, scale, trans)
 	local photo = Instance.new("ImageLabel"); photo.BackgroundTransparency = 1
 	photo.AnchorPoint = Vector2.new(0.5,0.5); photo.Position = UDim2.fromScale(0.5,0.5)
 	photo.Size = UDim2.fromScale(scale, scale); photo.Image = SKY_IMG; photo.ImageTransparency = trans
-	photo.ScaleType = Enum.ScaleType.Crop; photo.ZIndex = z; photo.Parent = field; corner(photo, 14); return photo
+	photo.ScaleType = Enum.ScaleType.Crop; photo.ZIndex = z; photo.Parent = field; corner(photo, 20); return photo
 end
 local skyBack = skyLayer(2,1.2,0.2); local skyMid = skyLayer(2,1.1,0.08); local skyFront = skyLayer(2,1.04,0)
 local grade = Instance.new("Frame"); grade.Size = UDim2.fromScale(1,1); grade.BackgroundColor3 = Color3.fromRGB(30,8,55)
-grade.BackgroundTransparency = 0.72; grade.BorderSizePixel = 0; grade.ZIndex = 2; grade.Parent = field; corner(grade,14)
+grade.BackgroundTransparency = 0.72; grade.BorderSizePixel = 0; grade.ZIndex = 2; grade.Parent = field; corner(grade,20)
 local ggrad = Instance.new("UIGradient"); ggrad.Rotation = 90
 ggrad.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,0.2),NumberSequenceKeypoint.new(0.5,0.5),NumberSequenceKeypoint.new(1,0)})
 ggrad.Parent = grade
@@ -259,7 +259,7 @@ local function chromeBtn(x, label, col, fn)
 	local b = Instance.new("TextButton"); b.Size = UDim2.fromOffset(28,28); b.Position = UDim2.new(1,x,0.5,-14)
 	b.BackgroundColor3 = P.card; b.BackgroundTransparency = 1; b.AutoButtonColor = false; b.Text = label
 	b.FontFace = F_S; b.TextSize = 12; b.TextColor3 = col; b.BorderSizePixel = 0; b.ZIndex = 7; b.Parent = top
-	corner(b, 8); local st = stroke(b, col, 1, 0.7)
+	corner(b, 10); local st = stroke(b, col, 1, 0.7)
 	b.MouseEnter:Connect(function() tw(b,0.12,{BackgroundTransparency=0}); tw(st,0.12,{Transparency=0.2}) end)
 	b.MouseLeave:Connect(function() tw(b,0.12,{BackgroundTransparency=1}); tw(st,0.12,{Transparency=0.7}) end)
 	b.MouseButton1Click:Connect(function() ripple(b,14,14,80); fn() end)
@@ -289,8 +289,8 @@ nav.CanvasSize = UDim2.new(); nav.AutomaticCanvasSize = Enum.AutomaticSize.Y; na
 local nl = Instance.new("UIListLayout"); nl.Padding = UDim.new(0,4); nl.SortOrder = Enum.SortOrder.LayoutOrder; nl.Parent = nav
 
 local uc = bx(side, P.card, 4); uc.Size = UDim2.new(1,-12,0,40); uc.Position = UDim2.new(0,6,1,-48)
-corner(uc,10); stroke(uc, P.line,1,0.4); sheen(uc,5)
-local av = bx(uc, P.accentD, 5); av.Size = UDim2.fromOffset(26,26); av.Position = UDim2.new(0,7,0.5,-13); corner(av,8)
+corner(uc,14); stroke(uc, P.line,1,0.4); sheen(uc,5)
+local av = bx(uc, P.accentD, 5); av.Size = UDim2.fromOffset(26,26); av.Position = UDim2.new(0,7,0.5,-13); corner(av,10)
 grad(av, P.accent, P.accent2, 45)
 local avt = tx(uc, string.sub(LocalPlayer.DisplayName,1,1):upper(), F_D, 11, P.hot)
 avt.Size = UDim2.fromOffset(26,26); avt.Position = UDim2.new(0,7,0.5,-13); avt.TextXAlignment = Enum.TextXAlignment.Center; avt.ZIndex = 6
@@ -375,7 +375,7 @@ local function makeTab(name, icon)
 	tabOrder += 1
 	local b = Instance.new("TextButton"); b.Size = UDim2.new(1,0,0,38); b.BackgroundColor3 = P.cardHov
 	b.BackgroundTransparency = 1; b.AutoButtonColor = false; b.Text = ""; b.BorderSizePixel = 0
-	b.LayoutOrder = tabOrder; b.ZIndex = 5; b.Parent = nav; corner(b,10)
+	b.LayoutOrder = tabOrder; b.ZIndex = 5; b.Parent = nav; corner(b,12)
 	local ic = tx(b, icon or "•", F_R, 14, P.dim); ic.Size = UDim2.fromOffset(28,38); ic.Position = UDim2.fromOffset(8,0)
 	ic.TextXAlignment = Enum.TextXAlignment.Center; ic.ZIndex = 6
 	local l = tx(b, name, F_M, 13, P.dim); l.Size = UDim2.new(1,-44,1,0); l.Position = UDim2.fromOffset(38,0); l.ZIndex = 6
@@ -395,7 +395,7 @@ local function makeTab(name, icon)
 	local function rowBase(h)
 		rows += 1
 		local r = bx(page, P.card, 3); r.Size = UDim2.new(1,-4,0,h); r.LayoutOrder = rows; r.BackgroundTransparency = 1
-		corner(r,12); stroke(r, P.line,1,0.4); sheen(r,4)
+		corner(r,16); stroke(r, P.line,1,0.4); sheen(r,4)
 		local sc = Instance.new("UIScale"); sc.Scale = 0.94; sc.Parent = r
 		task.delay(rows*0.03, function()
 			if not r.Parent then return end
@@ -425,7 +425,7 @@ local function makeTab(name, icon)
 		local l2 = tx(r, label, F_S, 13, P.text); l2.Size = UDim2.new(1,-70,0,18); l2.Position = UDim2.fromOffset(16, desc and 10 or 13); l2.ZIndex = 5
 		if desc then local d = tx(r, desc, F_R, 11, P.dim); d.Size = UDim2.new(1,-70,0,16); d.Position = UDim2.fromOffset(16,30); d.ZIndex = 5 end
 		local box = bx(r, on and P.accent or P.off, 5); box.AnchorPoint = Vector2.new(1,0.5); box.Position = UDim2.new(1,-16,0.5,0)
-		box.Size = UDim2.fromOffset(22,22); corner(box,6); stroke(box, on and P.accent or P.line, 1, on and 0.2 or 0.45)
+		box.Size = UDim2.fromOffset(22,22); corner(box,8); stroke(box, on and P.accent or P.line, 1, on and 0.2 or 0.45)
 		local check = tx(box, "✓", F_B, 14, P.hot); check.Size = UDim2.fromScale(1,1); check.TextXAlignment = Enum.TextXAlignment.Center
 		check.TextTransparency = on and 0 or 1; check.ZIndex = 6
 		local function apply(v, fire, anim)
@@ -484,7 +484,7 @@ local function makeTab(name, icon)
 		b2.BackgroundColor3 = primary and P.accent or P.card; b2.BackgroundTransparency = 1; b2.AutoButtonColor = false
 		b2.BorderSizePixel = 0; b2.Text = label; b2.FontFace = primary and F_B or F_S; b2.TextSize = 13
 		b2.TextColor3 = primary and Color3.new(1,1,1) or P.text; b2.LayoutOrder = rows; b2.ZIndex = 4; b2.Parent = page
-		b2.ClipsDescendants = true; corner(b2,12)
+		b2.ClipsDescendants = true; corner(b2,14)
 		local sc = Instance.new("UIScale"); sc.Scale = 0.94; sc.Parent = b2
 		local g; if primary then grad(b2, P.accent, P.accentD, 90); g = glow(b2, P.accent, 2, 2, 12, 0.48) else stroke(b2, P.line,1,0.3) end
 		task.delay(rows*0.03, function()
@@ -513,7 +513,7 @@ end
 local function notify(text, kind, seconds)
 	local col = kind=="good" and P.good or kind=="warn" and P.warn or kind=="bad" and P.bad or P.accent
 	local n = bx(gui, P.top, 40); n.AnchorPoint = Vector2.new(1,1); n.Position = UDim2.new(1,-16,1,50)
-	n.Size = UDim2.fromOffset(260,44); n.BackgroundTransparency = 1; corner(n,11); stroke(n,col,1.2,0.3)
+	n.Size = UDim2.fromOffset(260,44); n.BackgroundTransparency = 1; corner(n,14); stroke(n,col,1.2,0.3)
 	glow(n,col,2,2,11,0.52); sheen(n,41)
 	local bar = bx(n,col,41); bar.Size = UDim2.fromOffset(3,22); bar.Position = UDim2.new(0,12,0.5,-11); corner(bar,2)
 	local l = tx(n,text,F_M,12,P.text); l.Size = UDim2.new(1,-32,1,0); l.Position = UDim2.fromOffset(22,0); l.ZIndex=42; l.TextWrapped=true; l.TextTransparency=1
@@ -973,9 +973,14 @@ local function CleanupGKHelper()
 	if GKHelper.PredCircle then pcall(function() GKHelper.PredCircle:Destroy() end); GKHelper.PredCircle=nil end
 	if GKHelper.InnerRing then pcall(function() GKHelper.InnerRing:Destroy() end); GKHelper.InnerRing=nil end
 	GKHelper.IsMoving=false
+	if Humanoid then
+		Humanoid.WalkSpeed = GK_CONFIG.ORIGINAL_SPEED
+		pcall(function() Humanoid:Move(Vector3.zero) end)
+	end
 end
 local function StartGKHelper()
-	if GKHelper.Enabled then return end; CleanupGKHelper()
+	if GKHelper.Enabled then return end
+	CleanupGKHelper()
 	local predictionCircle = Instance.new("Part"); predictionCircle.Name="GK_PredictionCircle"; predictionCircle.Anchored=true
 	predictionCircle.CanCollide=false; predictionCircle.Shape=Enum.PartType.Cylinder; predictionCircle.Size=Vector3.new(0.15,5,5)
 	predictionCircle.Color=Color3.fromRGB(0,255,80); predictionCircle.Material=Enum.Material.Neon; predictionCircle.Transparency=0.3
@@ -986,6 +991,7 @@ local function StartGKHelper()
 	innerRing.Parent=Workspace.Debris or Workspace; GKHelper.InnerRing=innerRing
 	GKHelper.Enabled=true
 	GKHelper.Connection = RunService.Heartbeat:Connect(function()
+		if not GKHelper.Enabled then return end
 		if not HRP or not Humanoid then return end
 		local bestPred, bestTime = nil, math.huge
 		local isPositiveGoal = HRP.Position.Z>0
@@ -1008,15 +1014,19 @@ local function StartGKHelper()
 			local gkX = math.clamp(bestPred.X, GK_CONFIG.GOAL_POST_LEFT_X+1, GK_CONFIG.GOAL_POST_RIGHT_X-1)
 			Humanoid.WalkSpeed = GK_CONFIG.MOVE_SPEED; Humanoid:MoveTo(Vector3.new(gkX, HRP.Position.Y, gkZ)); GKHelper.IsMoving=true
 		else
-			if GKHelper.IsMoving then Humanoid.WalkSpeed=GK_CONFIG.ORIGINAL_SPEED; GKHelper.IsMoving=false end
+			if GKHelper.IsMoving then
+				Humanoid.WalkSpeed=GK_CONFIG.ORIGINAL_SPEED
+				pcall(function() Humanoid:Move(Vector3.zero) end)
+				GKHelper.IsMoving=false
+			end
 			if GKHelper.PredCircle then GKHelper.PredCircle.CFrame=CFrame.new(0,-100,0) end
 			if GKHelper.InnerRing then GKHelper.InnerRing.CFrame=CFrame.new(0,-100,0) end
 		end
 	end)
 end
 local function StopGKHelper()
-	GKHelper.Enabled=false; CleanupGKHelper()
-	if Humanoid then Humanoid.WalkSpeed=GK_CONFIG.ORIGINAL_SPEED end
+	GKHelper.Enabled=false
+	CleanupGKHelper()
 end
 
 local AutoConfig = {DribbleEnabled=false, DribbleKey=Enum.KeyCode.K, DribbleRadius=1.2, DribblePred=0.14, GuardEnabled=false, GuardKey=Enum.KeyCode.L, GuardStopDist=1.5, GuardPred=0.5, MossEnabled=false, MossKey=Enum.KeyCode.M, MossActivationDist=50}
@@ -1626,8 +1636,120 @@ UserInputService.JumpRequest:Connect(function()
 end)
 
 
+
+-- ============================================================
+-- POWERSHOT / SHOOT SPEED (chain-style velocity multiplier)
+-- ============================================================
+local PowerShot = {
+	Enabled = false,
+	Multiplier = 1.5,
+	MaxVel = 300,
+	SwapDelayMs = 500,
+	LastToolEquip = 0,
+	LastFire = 0,
+	Moves = {
+		Shoot = true, Kick = true, Volley = false, Header = false,
+		Diving_Header = false, Bicycle_Kick = false, Scorpion_Kick = false, Scissor_Kick = false,
+	},
+}
+
+local function TrackPowerShotTool(char)
+	if not char then return end
+	char.ChildAdded:Connect(function(child)
+		if child:IsA("Tool") then PowerShot.LastToolEquip = tick() end
+	end)
+end
+if Character then TrackPowerShotTool(Character) end
+LocalPlayer.CharacterAdded:Connect(function(c)
+	task.wait(0.2)
+	TrackPowerShotTool(c)
+end)
+
+local function ApplyPowerShotVelocity(ball, bodyVel)
+	if not PowerShot.Enabled or not ball or not bodyVel then return end
+	local tool = Character and Character:FindFirstChildOfClass("Tool")
+	if not tool then return end
+	local name = tool.Name
+	if not (PowerShot.Moves[name] or (name == "Kick" and PowerShot.Moves.Shoot)) then return end
+	local since = (tick() - PowerShot.LastToolEquip) * 1000
+	if since < PowerShot.SwapDelayMs then return end
+	if tick() - PowerShot.LastFire < 0.15 then return end
+	pcall(function()
+		local vel = bodyVel.Velocity
+		local mult = PowerShot.Multiplier
+		local maxVel = PowerShot.MaxVel
+		local newVel = Vector3.new(vel.X * mult, vel.Y, vel.Z * mult)
+		local horiz = Vector3.new(newVel.X, 0, newVel.Z).Magnitude
+		if horiz > maxVel then
+			local s = maxVel / horiz
+			newVel = Vector3.new(newVel.X * s, vel.Y, newVel.Z * s)
+		end
+		bodyVel.Velocity = newVel
+		PowerShot.LastFire = tick()
+	end)
+end
+
+-- VEF-style: watch balls for BodyVelocity children after a shot
+local function HookBallPowerShot(ball)
+	if not ball or not ball:IsA("BasePart") then return end
+	ball.ChildAdded:Connect(function(child)
+		if child:IsA("BodyVelocity") then
+			task.wait()
+			if child.Parent and child.Velocity.Magnitude > 20 then
+				ApplyPowerShotVelocity(ball, child)
+			end
+		end
+	end)
+end
+
+task.spawn(function()
+	while true do
+		task.wait(1)
+		for _, ball in ipairs(GetVEFBalls()) do
+			pcall(HookBallPowerShot, ball)
+		end
+	end
+end)
+
+-- also boost AssemblyLinearVelocity shortly after tool activate (fallback)
+local powerShotFallbackConn
+local function StartPowerShotWatch()
+	if powerShotFallbackConn then return end
+	powerShotFallbackConn = RunService.Heartbeat:Connect(function()
+		if not PowerShot.Enabled or not HRP then return end
+		local tool = Character and Character:FindFirstChildOfClass("Tool")
+		if not tool then return end
+		local name = tool.Name
+		if not (PowerShot.Moves[name] or (name == "Kick" and PowerShot.Moves.Shoot)) then return end
+		local since = (tick() - PowerShot.LastToolEquip) * 1000
+		if since < PowerShot.SwapDelayMs then return end
+		if tick() - PowerShot.LastFire < 0.2 then return end
+		for _, ball in ipairs(GetVEFBalls()) do
+			if (ball.Position - HRP.Position).Magnitude > 25 then continue end
+			local vel = ball.AssemblyLinearVelocity
+			local speed = Vector3.new(vel.X, 0, vel.Z).Magnitude
+			if speed < 25 then continue end
+			local mult = PowerShot.Multiplier
+			local maxVel = PowerShot.MaxVel
+			local newX, newZ = vel.X * mult, vel.Z * mult
+			local horiz = math.sqrt(newX*newX + newZ*newZ)
+			if horiz > maxVel then
+				local s = maxVel / horiz
+				newX, newZ = newX * s, newZ * s
+			end
+			ball.AssemblyLinearVelocity = Vector3.new(newX, vel.Y, newZ)
+			PowerShot.LastFire = tick()
+			break
+		end
+	end)
+end
+local function StopPowerShotWatch()
+	if powerShotFallbackConn then pcall(function() powerShotFallbackConn:Disconnect() end); powerShotFallbackConn = nil end
+end
+
+
 -- TABS (exact Kaiven names + emoji-style icons)
-local playerTab = makeTab("Player", "P")
+local playerTab = makeTab("Player", "👤")
 playerTab:Section("Reach", "Extends hitbox to touch ball")
 playerTab:Toggle("Reach", "Master switch", false, function(v)
 	ReachConfig.Master=v
@@ -1651,11 +1773,23 @@ end, " studs/s")
 playerTab:Toggle("Speed", "Extra movement speed", false, function(v) CharSpeed.Enabled=v end)
 playerTab:Slider("Speed Value", nil, 0, 10, 0, function(v) CharSpeed.Value=v end, "")
 playerTab:Toggle("Infinite Jump", nil, false, function(v) InfJump=v end)
+playerTab:Section("PowerShot / Shoot Speed", "Velocity multiplier on shots (chain-style)")
+playerTab:Toggle("PowerShot Master", "Enable shoot speed multiplier", false, function(v)
+	PowerShot.Enabled = v
+	if v then StartPowerShotWatch(); notify("PowerShot ON", "good")
+	else StopPowerShotWatch(); notify("PowerShot OFF", "warn") end
+end)
+playerTab:Slider("Multiplier", "Shot velocity scale", 0.5, 5, 1.5, function(v) PowerShot.Multiplier = v end, "x")
+playerTab:Slider("Max Velocity Cap", "Horizontal speed hard cap", 100, 1000, 300, function(v) PowerShot.MaxVel = v end, "")
+playerTab:Slider("Tool Swap Delay", "ms after equip before boost", 0, 2000, 500, function(v) PowerShot.SwapDelayMs = v end, " ms")
+playerTab:Toggle("Boost Shoot", nil, true, function(v) PowerShot.Moves.Shoot = v; PowerShot.Moves.Kick = v end)
+playerTab:Toggle("Boost Volley", nil, false, function(v) PowerShot.Moves.Volley = v end)
+playerTab:Toggle("Boost Header", nil, false, function(v) PowerShot.Moves.Header = v end)
 LocalPlayer.CharacterAdded:Connect(function(char)
 	task.wait(0.3); local hum=char:FindFirstChildOfClass("Humanoid"); if hum then hum.WalkSpeed=WalkSpeedValue end
 end)
 
-local visualsTab = makeTab("Visuals", "V")
+local visualsTab = makeTab("Visuals", "👁")
 visualsTab:Section("Radar", "Shows players and balls on a circular radar")
 visualsTab:Toggle("Radar", nil, false, function(v) if v then RadarEnabled=true; StartRadar() else StopRadar() end end)
 visualsTab:Slider("Max Range", "Maximum detection range for radar", 50, 500, 150, function(v) RadarConfig.MaxRange=v end, " studs")
@@ -1675,7 +1809,7 @@ visualsTab:Button("Pitch: Green", false, function() SetPitchColor(Color3.fromRGB
 visualsTab:Button("Pitch: Dark", false, function() SetPitchColor(Color3.fromRGB(20,40,20)); notify("Pitch dark","good") end)
 visualsTab:Button("Pitch: Purple", false, function() SetPitchColor(Color3.fromRGB(60,20,80)); notify("Pitch purple","good") end)
 
-local gkTab = makeTab("GK", "G")
+local gkTab = makeTab("GK", "🧤")
 gkTab:Section("Auto Catch", "Automatically catches balls in range")
 gkTab:Toggle("Auto Catch", nil, false, function(v) AutoCatch.Enabled=v end)
 gkTab:Slider("Catch Range", "Max distance to auto-catch", 5, 50, 25, function(v) AutoCatch.Range=v end, " studs")
@@ -1698,7 +1832,7 @@ gkTab:Slider("V2 Trigger Time", "Seconds before goal line to dive", 0.2, 1.2, 0.
 gkTab:Slider("V2 Cooldown", "Delay between saves", 0.3, 1.5, 0.80, function(v) GKV2.COOLDOWN = v end, " s")
 gkTab:Label("V2: strict low/high split + post-hit magnet")
 
-local autoTab = makeTab("Auto", "A2")
+local autoTab = makeTab("Auto", "⚡")
 autoTab:Section("Auto Dribble", "Hotkey: K")
 autoTab:Toggle("Auto Dribble", "Enable/Disable Auto Dribble (use hotkey to toggle on/off)", false, function(v) AutoConfig.DribbleEnabled=v end)
 autoTab:Slider("Dribble Radius", nil, 0.5, 4, 1.2, function(v) AutoConfig.DribbleRadius=v end, "")
@@ -1725,7 +1859,7 @@ autoTab:Slider("Moss Air Range", "Air ball magnet distance", 10, 40, 22, functio
 autoTab:Label("Moss V2: V = ball TP | click/Q = shoot | jump = header")
 
 
-local aimTab = makeTab("Aimbot", "A")
+local aimTab = makeTab("Aimbot", "🎯")
 aimTab:Section("Aimbot Goal V1", "Corner velocity assist (ZEX style)")
 aimTab:Toggle("Enable V1", "Master switch for aimbot goal v1", false, function(v)
 	if v then StartAimbotV1(); notify("Aimbot Goal V1 ON", "good")
@@ -1758,14 +1892,14 @@ end)
 aimTab:Slider("V2 Strength", "Auto curve strength", 0.05, 0.40, 0.18, function(v) AimbotV2.Strength = v end, "")
 aimTab:Label("V2: J = auto bins | K = pass assist")
 
-local miscTab = makeTab("Misc", "M")
+local miscTab = makeTab("Misc", "⚙")
 miscTab:Section("Utility", nil)
 miscTab:Button("Notify Test", true, function() notify("Valkyrie.ui online","good") end)
 miscTab:Button("Unload", false, function()
 	task.spawn(function()
 		pcall(function() ReachConfig.Master = false end)
 		pcall(StopRadar); pcall(StopAutoSave); pcall(StopGKHelper); pcall(ClearDump)
-		pcall(StopAimbotV1); pcall(StopAimbotV2); pcall(StopGKV2); pcall(StopMossV2)
+		pcall(StopAimbotV1); pcall(StopAimbotV2); pcall(StopGKV2); pcall(StopMossV2); pcall(StopPowerShotWatch)
 		pcall(function() if BallPred then BallPred.Enabled = false end end)
 		pcall(function() CharSpeed.Enabled = false end)
 		pcall(function() AutoCatch.Enabled = false end)
