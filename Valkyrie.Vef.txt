@@ -536,25 +536,35 @@ local function makeTab(name, icon)
 		local cur = default or (opts[1] or "")
 		local open = false
 		local r = rowBase(52)
-		local l2 = tx(r, label, F_S, 13, P.text); l2.Size = UDim2.new(0.45,-8,0,18); l2.Position = UDim2.fromOffset(16,16); l2.ZIndex = 5
+		r.ClipsDescendants = false
+		local l2 = tx(r, label, F_S, 13, P.text); l2.Size = UDim2.new(0.42,-8,0,18); l2.Position = UDim2.fromOffset(16,16); l2.ZIndex = 5
 		local btn = Instance.new("TextButton")
-		btn.Size = UDim2.new(0.55,-20,0,28); btn.Position = UDim2.new(0.45,0,0.5,-14)
+		btn.Size = UDim2.new(0.58,-20,0,28); btn.Position = UDim2.new(0.42,0,0.5,-14)
 		btn.BackgroundColor3 = P.off; btn.AutoButtonColor = false; btn.BorderSizePixel = 0
 		btn.Text = "  "..tostring(cur).."  v"; btn.FontFace = F_S; btn.TextSize = 12
 		btn.TextColor3 = P.text; btn.TextXAlignment = Enum.TextXAlignment.Left
 		btn.ZIndex = 6; btn.Parent = r; corner(btn, 8); stroke(btn, P.line, 1, 0.35)
-		local list = bx(page, P.panel, 40)
-		list.Size = UDim2.new(1,-24,0,0); list.Position = UDim2.fromOffset(12,0)
-		list.Visible = false; list.ClipsDescendants = true; corner(list, 10); stroke(list, P.accent, 1.2, 0.35)
+		-- dropdown list sits under this row (same tab, not page top)
+		local list = Instance.new("Frame")
+		list.Name = "DropList"
+		list.BackgroundColor3 = P.panel
+		list.BorderSizePixel = 0
+		list.Size = UDim2.new(0.58,-20,0,0)
+		list.Position = UDim2.new(0.42,0,1,2)
+		list.Visible = false
+		list.ClipsDescendants = true
+		list.ZIndex = 50
+		list.Parent = r
+		corner(list, 10); stroke(list, P.accent, 1.2, 0.3)
 		local scroll = Instance.new("ScrollingFrame")
 		scroll.BackgroundTransparency = 1; scroll.Size = UDim2.new(1,-6,1,-6); scroll.Position = UDim2.fromOffset(3,3)
 		scroll.ScrollBarThickness = 3; scroll.ScrollBarImageColor3 = P.accent; scroll.BorderSizePixel = 0
-		scroll.ZIndex = 41; scroll.Parent = list
+		scroll.ZIndex = 51; scroll.CanvasSize = UDim2.new(0,0,0,0); scroll.Parent = list
 		local lay = Instance.new("UIListLayout"); lay.Padding = UDim.new(0,2); lay.Parent = scroll
 		local function close()
 			open = false
-			tw(list, 0.18, {Size = UDim2.new(1,-24,0,0)}, Enum.EasingStyle.Quint)
-			task.delay(0.18, function() if list.Parent then list.Visible = false end end)
+			tw(list, 0.15, {Size = UDim2.new(0.58,-20,0,0)}, Enum.EasingStyle.Quint)
+			task.delay(0.16, function() if list.Parent then list.Visible = false end end)
 		end
 		local function pick(v)
 			cur = v; btn.Text = "  "..tostring(v).."  v"; close()
@@ -562,23 +572,21 @@ local function makeTab(name, icon)
 		end
 		for _, opt in ipairs(opts) do
 			local ob = Instance.new("TextButton")
-			ob.Size = UDim2.new(1,-4,0,28); ob.BackgroundColor3 = P.card; ob.BackgroundTransparency = 0.3
+			ob.Size = UDim2.new(1,-4,0,26); ob.BackgroundColor3 = P.card; ob.BackgroundTransparency = 0.25
 			ob.AutoButtonColor = false; ob.BorderSizePixel = 0; ob.Text = "  "..tostring(opt)
 			ob.FontFace = F_R; ob.TextSize = 12; ob.TextColor3 = P.text; ob.TextXAlignment = Enum.TextXAlignment.Left
-			ob.ZIndex = 42; ob.Parent = scroll; corner(ob, 6)
-			ob.MouseEnter:Connect(function() tw(ob,0.1,{BackgroundTransparency=0.05, BackgroundColor3=P.cardHov}) end)
-			ob.MouseLeave:Connect(function() tw(ob,0.1,{BackgroundTransparency=0.3, BackgroundColor3=P.card}) end)
+			ob.ZIndex = 52; ob.Parent = scroll; corner(ob, 6)
+			ob.MouseEnter:Connect(function() tw(ob,0.1,{BackgroundTransparency=0, BackgroundColor3=P.cardHov}) end)
+			ob.MouseLeave:Connect(function() tw(ob,0.1,{BackgroundTransparency=0.25, BackgroundColor3=P.card}) end)
 			ob.MouseButton1Click:Connect(function() pick(opt) end)
 		end
-		scroll.CanvasSize = UDim2.new(0,0,0, #opts * 30)
+		scroll.CanvasSize = UDim2.new(0,0,0, #opts * 28)
 		btn.MouseButton1Click:Connect(function()
 			if open then close(); return end
 			open = true; list.Visible = true
-			local abs = r.AbsolutePosition; local par = page.AbsolutePosition
-			list.Position = UDim2.fromOffset(12, abs.Y - par.Y + r.AbsoluteSize.Y + page.CanvasPosition.Y + 4)
-			local h = math.min(#opts * 30 + 8, 180)
-			list.Size = UDim2.new(1,-24,0,0)
-			tw(list, 0.22, {Size = UDim2.new(1,-24,0,h)}, Enum.EasingStyle.Quint)
+			local h = math.min(#opts * 28 + 8, 160)
+			list.Size = UDim2.new(0.58,-20,0,0)
+			tw(list, 0.2, {Size = UDim2.new(0.58,-20,0,h)}, Enum.EasingStyle.Quint)
 		end)
 		return {Set=function(_,v) cur=v; btn.Text="  "..tostring(v).."  v" end, Get=function() return cur end}
 	end
@@ -1903,6 +1911,178 @@ local function ApplySkybox(name)
 end
 local TimeOfDayCfg = { Enabled=false, Value=14 }
 
+-- VISUAL LIGHTING PRESETS (Dark / Light / Abundance / etc — no grass)
+local VisualFX = { Current = "Default", Saved = nil }
+local function CaptureLighting()
+	local s = {}
+	pcall(function()
+		s.Ambient = Lighting.Ambient
+		s.OutdoorAmbient = Lighting.OutdoorAmbient
+		s.Brightness = Lighting.Brightness
+		s.ClockTime = Lighting.ClockTime
+		s.FogColor = Lighting.FogColor
+		s.FogEnd = Lighting.FogEnd
+		s.FogStart = Lighting.FogStart
+		s.ExposureCompensation = Lighting.ExposureCompensation
+		s.GlobalShadows = Lighting.GlobalShadows
+	end)
+	return s
+end
+if not VisualFX.Saved then VisualFX.Saved = CaptureLighting() end
+local function ClearFX()
+	for _, n in ipairs({"Valkyrie_CC","Valkyrie_Bloom","Valkyrie_Rays","Valkyrie_Blur","Valkyrie_Atmo"}) do
+		pcall(function() local o=Lighting:FindFirstChild(n); if o then o:Destroy() end end)
+	end
+end
+local function Ensure(class, name)
+	local o = Lighting:FindFirstChild(name)
+	if o and o.ClassName == class then return o end
+	if o then o:Destroy() end
+	o = Instance.new(class); o.Name = name; o.Parent = Lighting
+	return o
+end
+local VISUAL_PRESETS = {
+	["Default"] = function()
+		ClearFX()
+		local s = VisualFX.Saved
+		if s then
+			pcall(function()
+				Lighting.Ambient=s.Ambient; Lighting.OutdoorAmbient=s.OutdoorAmbient
+				Lighting.Brightness=s.Brightness; Lighting.FogColor=s.FogColor
+				Lighting.FogEnd=s.FogEnd; Lighting.FogStart=s.FogStart
+				Lighting.ExposureCompensation=s.ExposureCompensation
+				Lighting.GlobalShadows=s.GlobalShadows
+			end)
+		end
+	end,
+	["Dark"] = function()
+		ClearFX()
+		Lighting.Ambient = Color3.fromRGB(15,15,22)
+		Lighting.OutdoorAmbient = Color3.fromRGB(25,25,35)
+		Lighting.Brightness = 0.6
+		Lighting.ExposureCompensation = -0.4
+		Lighting.FogColor = Color3.fromRGB(10,10,18)
+		Lighting.FogStart = 40; Lighting.FogEnd = 400
+		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
+		cc.Brightness = -0.05; cc.Contrast = 0.25; cc.Saturation = -0.15; cc.TintColor = Color3.fromRGB(180,190,220)
+	end,
+	["Light"] = function()
+		ClearFX()
+		Lighting.Ambient = Color3.fromRGB(180,180,190)
+		Lighting.OutdoorAmbient = Color3.fromRGB(200,200,210)
+		Lighting.Brightness = 3
+		Lighting.ExposureCompensation = 0.35
+		Lighting.FogStart = 0; Lighting.FogEnd = 100000
+		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
+		cc.Brightness = 0.08; cc.Contrast = 0.1; cc.Saturation = 0.05; cc.TintColor = Color3.fromRGB(255,255,255)
+		local bl = Ensure("BloomEffect","Valkyrie_Bloom")
+		bl.Intensity = 0.4; bl.Size = 24; bl.Threshold = 1.2
+	end,
+	["Abundance"] = function()
+		ClearFX()
+		Lighting.Ambient = Color3.fromRGB(90,70,120)
+		Lighting.OutdoorAmbient = Color3.fromRGB(110,90,140)
+		Lighting.Brightness = 2.2
+		Lighting.ExposureCompensation = 0.2
+		Lighting.FogColor = Color3.fromRGB(80,50,120)
+		Lighting.FogStart = 60; Lighting.FogEnd = 600
+		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
+		cc.Brightness = 0.05; cc.Contrast = 0.2; cc.Saturation = 0.35; cc.TintColor = Color3.fromRGB(230,200,255)
+		local bl = Ensure("BloomEffect","Valkyrie_Bloom")
+		bl.Intensity = 1.1; bl.Size = 40; bl.Threshold = 0.85
+		local rays = Ensure("SunRaysEffect","Valkyrie_Rays")
+		rays.Intensity = 0.15; rays.Spread = 0.6
+	end,
+	["Bright"] = function()
+		ClearFX()
+		Lighting.Ambient = Color3.fromRGB(220,220,220)
+		Lighting.OutdoorAmbient = Color3.fromRGB(255,255,255)
+		Lighting.Brightness = 4
+		Lighting.ExposureCompensation = 0.6
+		Lighting.FogStart = 0; Lighting.FogEnd = 100000
+		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
+		cc.Brightness = 0.12; cc.Contrast = 0.05; cc.Saturation = 0.1; cc.TintColor = Color3.fromRGB(255,255,255)
+	end,
+	["Night"] = function()
+		ClearFX()
+		Lighting.Ambient = Color3.fromRGB(20,24,40)
+		Lighting.OutdoorAmbient = Color3.fromRGB(30,35,55)
+		Lighting.Brightness = 0.8
+		Lighting.ClockTime = 0
+		Lighting.ExposureCompensation = -0.2
+		Lighting.FogColor = Color3.fromRGB(15,18,35)
+		Lighting.FogStart = 30; Lighting.FogEnd = 350
+		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
+		cc.Brightness = -0.02; cc.Contrast = 0.2; cc.Saturation = -0.05; cc.TintColor = Color3.fromRGB(160,175,255)
+	end,
+	["Soft"] = function()
+		ClearFX()
+		Lighting.Ambient = Color3.fromRGB(140,135,150)
+		Lighting.OutdoorAmbient = Color3.fromRGB(160,155,170)
+		Lighting.Brightness = 1.8
+		Lighting.ExposureCompensation = 0.1
+		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
+		cc.Brightness = 0.02; cc.Contrast = -0.05; cc.Saturation = 0.08; cc.TintColor = Color3.fromRGB(255,245,250)
+		local bl = Ensure("BloomEffect","Valkyrie_Bloom")
+		bl.Intensity = 0.55; bl.Size = 30; bl.Threshold = 1.0
+		local blur = Ensure("BlurEffect","Valkyrie_Blur")
+		blur.Size = 2
+	end,
+	["Contrast"] = function()
+		ClearFX()
+		Lighting.Ambient = Color3.fromRGB(80,80,80)
+		Lighting.OutdoorAmbient = Color3.fromRGB(100,100,100)
+		Lighting.Brightness = 2
+		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
+		cc.Brightness = 0; cc.Contrast = 0.45; cc.Saturation = 0.15; cc.TintColor = Color3.fromRGB(255,255,255)
+	end,
+	["Warm"] = function()
+		ClearFX()
+		Lighting.Ambient = Color3.fromRGB(160,120,90)
+		Lighting.OutdoorAmbient = Color3.fromRGB(180,140,100)
+		Lighting.Brightness = 2.4
+		Lighting.ExposureCompensation = 0.15
+		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
+		cc.Brightness = 0.04; cc.Contrast = 0.12; cc.Saturation = 0.2; cc.TintColor = Color3.fromRGB(255,220,180)
+		local bl = Ensure("BloomEffect","Valkyrie_Bloom")
+		bl.Intensity = 0.7; bl.Size = 28; bl.Threshold = 0.95
+	end,
+	["Cold"] = function()
+		ClearFX()
+		Lighting.Ambient = Color3.fromRGB(90,120,150)
+		Lighting.OutdoorAmbient = Color3.fromRGB(110,140,170)
+		Lighting.Brightness = 1.9
+		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
+		cc.Brightness = 0; cc.Contrast = 0.15; cc.Saturation = -0.05; cc.TintColor = Color3.fromRGB(200,230,255)
+	end,
+	["Noir"] = function()
+		ClearFX()
+		Lighting.Ambient = Color3.fromRGB(40,40,40)
+		Lighting.OutdoorAmbient = Color3.fromRGB(55,55,55)
+		Lighting.Brightness = 1.2
+		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
+		cc.Brightness = -0.05; cc.Contrast = 0.35; cc.Saturation = -1; cc.TintColor = Color3.fromRGB(255,255,255)
+	end,
+	["Vivid"] = function()
+		ClearFX()
+		Lighting.Ambient = Color3.fromRGB(130,130,140)
+		Lighting.OutdoorAmbient = Color3.fromRGB(150,150,160)
+		Lighting.Brightness = 2.5
+		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
+		cc.Brightness = 0.05; cc.Contrast = 0.3; cc.Saturation = 0.55; cc.TintColor = Color3.fromRGB(255,255,255)
+		local bl = Ensure("BloomEffect","Valkyrie_Bloom")
+		bl.Intensity = 0.9; bl.Size = 35; bl.Threshold = 0.9
+	end,
+}
+local VISUAL_NAMES = {"Default","Dark","Light","Abundance","Bright","Night","Soft","Contrast","Warm","Cold","Noir","Vivid"}
+local function ApplyVisual(name)
+	VisualFX.Current = name
+	local fn = VISUAL_PRESETS[name]
+	if fn then pcall(fn) end
+end
+
+
+
 
 -- TABS (exact Kaiven names + emoji-style icons)
 local playerTab = makeTab("Player", "👤")
@@ -1956,7 +2136,7 @@ visualsTab:Toggle("Trajectory", nil, false, function(v) BallPred.Enabled=v; if n
 visualsTab:Slider("Trigger Speed", nil, 5, 60, 18, function(v) BallPred.Threshold=v end, "")
 visualsTab:Slider("Accuracy", nil, 4, 30, 12, function(v) BallPred.Accuracy=v end, "")
 
-visualsTab:Section("Skybox", "Local sky presets · time · ambient")
+visualsTab:Section("Skybox", "Pick sky from dropdown below")
 visualsTab:Toggle("Enable Skybox", "Apply custom sky locally", false, function(v)
 	SkyboxCfg.Enabled = v
 	if v then ApplySkybox(SkyboxCfg.Current) else RemoveCustomSky()
@@ -1980,7 +2160,16 @@ visualsTab:Button("Reset Skybox", false, function()
 	SkyboxCfg.Current = "Default"
 	notify("Sky reset", "warn")
 end)
-visualsTab:Label("Pick any preset from the dropdown.")
+visualsTab:Section("Visual Lighting", "Dark · Light · Abundance · more (no grass)")
+visualsTab:Dropdown("Visual Preset", VISUAL_NAMES, VisualFX.Current or "Default", function(v)
+	ApplyVisual(v)
+	notify("Visual: "..v, "good", 1.5)
+end)
+visualsTab:Button("Reset Visuals", false, function()
+	ApplyVisual("Default")
+	notify("Visuals reset", "warn")
+end)
+visualsTab:Label("Dark / Light / Abundance / Bright / Night / Soft / Warm / Cold / Noir / Vivid")
 visualsTab:Toggle("Custom Time of Day", "Lock clock time", false, function(v)
 	TimeOfDayCfg.Enabled = v
 	if v then Lighting.ClockTime = TimeOfDayCfg.Value end
@@ -2323,6 +2512,7 @@ local function S_collectConfig()
 			TimeEnabled = TimeOfDayCfg and TimeOfDayCfg.Enabled or false,
 			TimeValue = TimeOfDayCfg and TimeOfDayCfg.Value or 14,
 		},
+		Visual = VisualFX and VisualFX.Current or "Default",
 	}
 end
 local function S_applyConfig(data)
@@ -2377,6 +2567,7 @@ local function S_applyConfig(data)
 			if TimeOfDayCfg.Enabled then Lighting.ClockTime = TimeOfDayCfg.Value end
 		end
 	end
+	if data.Visual and ApplyVisual then pcall(ApplyVisual, data.Visual) end
 	S_rebuildMobile()
 	return true
 end
