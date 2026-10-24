@@ -1074,7 +1074,9 @@ LocalPlayer.Idled:Connect(function() pcall(function() VirtualUser:CaptureControl
 -- ============================================================
 -- AIMBOT GOAL V1 (Auto Top Bins style - corner velocity assist)
 -- ============================================================
-local AimbotV1 = {
+local AimbotV1, StartAimbotV1, StopAimbotV1
+do
+AimbotV1 = {
 	Enabled = false,
 	Assist = false,
 	Hud = false,
@@ -1139,7 +1141,7 @@ local function a1GK(net)
 	return best
 end
 
-local function StartAimbotV1()
+function StartAimbotV1()
 	if AimbotV1.conn then return end
 	AimbotV1.Enabled = true
 	AimbotV1.conn = RunService.Heartbeat:Connect(function()
@@ -1194,7 +1196,7 @@ local function StartAimbotV1()
 	end)
 end
 
-local function StopAimbotV1()
+function StopAimbotV1()
 	AimbotV1.Enabled = false
 	AimbotV1.Assist = false
 	AimbotV1.shotLocked = false
@@ -1212,10 +1214,14 @@ UserInputService.InputBegan:Connect(function(input, gp)
 	end
 end)
 
+end
+
 -- ============================================================
 -- AIMBOT GOAL V2 (TB-style auto top bins + pass assist core)
 -- ============================================================
-local AimbotV2 = {
+local AimbotV2, StartAimbotV2, StopAimbotV2
+do
+AimbotV2 = {
 	Enabled = false,
 	Auto = false,
 	Pass = false,
@@ -1255,7 +1261,7 @@ local function a2PickCorner(ball, goal)
 	return (ball.Position.X < c.X) and r or l
 end
 
-local function StartAimbotV2()
+function StartAimbotV2()
 	if AimbotV2.conn then return end
 	AimbotV2.Enabled = true
 	AimbotV2.conn = RunService.Heartbeat:Connect(function()
@@ -1323,7 +1329,7 @@ local function StartAimbotV2()
 	end)
 end
 
-local function StopAimbotV2()
+function StopAimbotV2()
 	AimbotV2.Enabled = false
 	AimbotV2.Auto = false
 	AimbotV2.Pass = false
@@ -1342,10 +1348,14 @@ UserInputService.InputBegan:Connect(function(input, gp)
 	end
 end)
 
+end
+
 -- ============================================================
 -- AUTO GK V2 (VRF AI style - strict low/high dive + magnet)
 -- ============================================================
-local GKV2 = {
+local GKV2, StartGKV2, StopGKV2
+do
+GKV2 = {
 	Enabled = false,
 	conn = nil,
 	lastSave = 0,
@@ -1445,7 +1455,7 @@ local function gk2Execute(pred, ball, ttg, goalZ, dirZ)
 	task.delay(GKV2.COOLDOWN, function() GKV2.saving = false end)
 end
 
-local function StartGKV2()
+function StartGKV2()
 	if GKV2.conn then return end
 	GKV2.Enabled = true
 	local step = RunService.RenderStepped
@@ -1470,15 +1480,19 @@ local function StartGKV2()
 	end)
 end
 
-local function StopGKV2()
+function StopGKV2()
 	GKV2.Enabled = false
 	if GKV2.conn then pcall(function() GKV2.conn:Disconnect() end); GKV2.conn = nil end
+end
+
 end
 
 -- ============================================================
 -- MOSS V2 (magnet + header + ball TP + click spam)
 -- ============================================================
-local MossV2 = {
+local MossV2, StartMossV2, StopMossV2
+do
+MossV2 = {
 	Enabled = false,
 	Magnet = true,
 	Header = true,
@@ -1567,7 +1581,7 @@ local function mossShoot()
 	end
 end
 
-local function StartMossV2()
+function StartMossV2()
 	if MossV2.loop then return end
 	MossV2.Enabled = true
 	MossV2.loop = task.spawn(function()
@@ -1592,7 +1606,7 @@ local function StartMossV2()
 	end)
 end
 
-local function StopMossV2()
+function StopMossV2()
 	MossV2.Enabled = false
 	MossV2.loop = nil
 	MossV2.auto = nil
@@ -1637,10 +1651,14 @@ end)
 
 
 
+end
+
 -- ============================================================
 -- POWERSHOT / SHOOT SPEED (chain-style velocity multiplier)
 -- ============================================================
-local PowerShot = {
+local PowerShot, StartPowerShotWatch, StopPowerShotWatch
+do
+PowerShot = {
 	Enabled = false,
 	Multiplier = 1.5,
 	MaxVel = 300,
@@ -1713,7 +1731,7 @@ end)
 
 -- also boost AssemblyLinearVelocity shortly after tool activate (fallback)
 local powerShotFallbackConn
-local function StartPowerShotWatch()
+function StartPowerShotWatch()
 	if powerShotFallbackConn then return end
 	powerShotFallbackConn = RunService.Heartbeat:Connect(function()
 		if not PowerShot.Enabled or not HRP then return end
@@ -1743,11 +1761,12 @@ local function StartPowerShotWatch()
 		end
 	end)
 end
-local function StopPowerShotWatch()
+function StopPowerShotWatch()
 	if powerShotFallbackConn then pcall(function() powerShotFallbackConn:Disconnect() end); powerShotFallbackConn = nil end
 end
 
 
+do
 -- TABS (exact Kaiven names + emoji-style icons)
 local playerTab = makeTab("Player", "👤")
 playerTab:Section("Reach", "Extends hitbox to touch ball")
@@ -1892,25 +1911,26 @@ end)
 aimTab:Slider("V2 Strength", "Auto curve strength", 0.05, 0.40, 0.18, function(v) AimbotV2.Strength = v end, "")
 aimTab:Label("V2: J = auto bins | K = pass assist")
 
-
 -- ============================================================
 -- KEYBINDS + MOBILE BUTTONS (Settings)
 -- ============================================================
-local Keybinds = {} -- [featureId] = Enum.KeyCode or nil
-local ListeningFor = nil -- featureId waiting for next key
-local FeatureList = {} -- ordered {id, label, get, set}
+local Keybinds, ListeningFor, FeatureList, MobileBtnConfig, MobileButtons, destroyMobileBtn, settingsTab
+do
+Keybinds = {} -- [featureId] = Enum.KeyCode or nil
+ListeningFor = nil -- featureId waiting for next key
+FeatureList = {} -- ordered {id, label, get, set}
 
 local function RegisterFeature(id, label, getFn, setFn)
 	table.insert(FeatureList, {id=id, label=label, get=getFn, set=setFn})
 end
 
-local MobileBtnConfig = {
+MobileBtnConfig = {
 	Size = 48,
 	Transparency = 0.15,
 	Locked = false,
 	Show = true,
 }
-local MobileButtons = {} -- [id] = {btn, label, drag}
+MobileButtons = {} -- [id] = {btn, label, drag}
 local mobileLayer = fr(gui, 50)
 mobileLayer.Size = UDim2.fromScale(1,1)
 mobileLayer.ZIndex = 50
@@ -1940,7 +1960,7 @@ local function applyMobileLookAll()
 	end
 end
 
-local function destroyMobileBtn(id)
+function destroyMobileBtn(id)
 	local e = MobileButtons[id]
 	if not e then return end
 	pcall(function() if e.btn then e.btn:Destroy() end end)
@@ -2100,7 +2120,7 @@ RegisterFeature("menu", "Toggle Menu", function() return main.Visible end, funct
 	if v then show() else hide() end
 end)
 
-local settingsTab = makeTab("Settings", "⚙")
+settingsTab = makeTab("Settings", "⚙")
 settingsTab:Section("Mobile Buttons", "Size · lock · transparency · show")
 settingsTab:Toggle("Show Mobile Buttons", "Toggle all floating feature buttons", true, function(v)
 	MobileBtnConfig.Show = v
@@ -2164,6 +2184,8 @@ task.defer(function()
 end)
 
 
+end
+
 local miscTab = makeTab("Misc", "M")
 miscTab:Section("Utility", nil)
 miscTab:Button("Notify Test", true, function() notify("Valkyrie.ui online","good") end)
@@ -2192,6 +2214,7 @@ miscTab:Button("Unload", false, function()
 end)
 miscTab:Label("RightControl toggles menu. Mobile uses top bar + orb.")
 miscTab:Label("Paste this whole script into any executor while in game.")
+end
 
 boot({"checking executor","loading reach","wiring gk systems","syncing theme","ready"}, function()
 	notify("Valkyrie.ui loaded","good")
