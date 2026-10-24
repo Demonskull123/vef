@@ -1892,7 +1892,279 @@ end)
 aimTab:Slider("V2 Strength", "Auto curve strength", 0.05, 0.40, 0.18, function(v) AimbotV2.Strength = v end, "")
 aimTab:Label("V2: J = auto bins | K = pass assist")
 
-local miscTab = makeTab("Misc", "⚙")
+
+-- ============================================================
+-- KEYBINDS + MOBILE BUTTONS (Settings)
+-- ============================================================
+local Keybinds = {} -- [featureId] = Enum.KeyCode or nil
+local ListeningFor = nil -- featureId waiting for next key
+local FeatureList = {} -- ordered {id, label, get, set}
+
+local function RegisterFeature(id, label, getFn, setFn)
+	table.insert(FeatureList, {id=id, label=label, get=getFn, set=setFn})
+end
+
+local MobileBtnConfig = {
+	Size = 48,
+	Transparency = 0.15,
+	Locked = false,
+	Show = true,
+}
+local MobileButtons = {} -- [id] = {btn, label, drag}
+local mobileLayer = fr(gui, 50)
+mobileLayer.Size = UDim2.fromScale(1,1)
+mobileLayer.ZIndex = 50
+
+local function styleMobileBtn(b)
+	b.BackgroundColor3 = Color3.fromRGB(12, 8, 20)
+	b.BackgroundTransparency = MobileBtnConfig.Transparency
+	b.TextColor3 = P.hot
+	b.FontFace = F_S
+	b.TextSize = math.clamp(math.floor(MobileBtnConfig.Size * 0.28), 9, 14)
+	b.AutoButtonColor = false
+	b.BorderSizePixel = 0
+	corner(b, math.floor(MobileBtnConfig.Size * 0.28))
+	local st = b:FindFirstChildOfClass("UIStroke")
+	if not st then st = stroke(b, P.accent, 1.3, 0.25) end
+	st.Color = P.accent
+	st.Transparency = 0.25 + MobileBtnConfig.Transparency * 0.5
+end
+
+local function applyMobileLookAll()
+	for _, entry in pairs(MobileButtons) do
+		if entry.btn and entry.btn.Parent then
+			local s = MobileBtnConfig.Size
+			entry.btn.Size = UDim2.fromOffset(s, s)
+			styleMobileBtn(entry.btn)
+		end
+	end
+end
+
+local function destroyMobileBtn(id)
+	local e = MobileButtons[id]
+	if not e then return end
+	pcall(function() if e.btn then e.btn:Destroy() end end)
+	MobileButtons[id] = nil
+end
+
+local function createMobileBtn(id, label, onPress)
+	destroyMobileBtn(id)
+	if not MobileBtnConfig.Show then return end
+	local s = MobileBtnConfig.Size
+	local b = Instance.new("TextButton")
+	b.Name = "MB_"..id
+	b.Size = UDim2.fromOffset(s, s)
+	b.Position = UDim2.new(1, -s-16, 0.35 + (#FeatureList%8)*0.06, 0)
+	-- scatter a bit by hash of id so they don't stack
+	local h = 0
+	for i=1,#id do h = h + string.byte(id,i) end
+	b.Position = UDim2.new(1, -s-16 - (h%3)*8, 0.2 + (h%10)*0.06, 0)
+	b.Text = string.sub(label, 1, 6)
+	b.ZIndex = 55
+	b.Parent = mobileLayer
+	styleMobileBtn(b)
+
+	local dragging, startM, startP = false, nil, nil
+	b.InputBegan:Connect(function(i)
+		if MobileBtnConfig.Locked then return end
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			startM = i.Position
+			startP = b.AbsolutePosition
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(i)
+		if not dragging or MobileBtnConfig.Locked then return end
+		if i.UserInputType ~= Enum.UserInputType.MouseMovement and i.UserInputType ~= Enum.UserInputType.Touch then return end
+		local d = i.Position - startM
+		local parentAbs = mobileLayer.AbsolutePosition
+		b.Position = UDim2.fromOffset(startP.X + d.X - parentAbs.X, startP.Y + d.Y - parentAbs.Y)
+		b.AnchorPoint = Vector2.new(0,0)
+	end)
+
+	local moved = false
+	local downAt = nil
+	b.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			downAt = i.Position; moved = false
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(i)
+		if downAt and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+			if (i.Position - downAt).Magnitude > 8 then moved = true end
+		end
+	end)
+	b.MouseButton1Click:Connect(function()
+		if moved then return end
+		ripple(b, s/2, s/2, s*2)
+		if onPress then pcall(onPress) end
+	end)
+
+	MobileButtons[id] = {btn=b, label=label}
+end
+
+local function toggleFeature(id)
+	for _, f in ipairs(FeatureList) do
+		if f.id == id then
+			local cur = f.get()
+			f.set(not cur)
+			notify(f.label .. " " .. (not cur and "ON" or "OFF"), not cur and "good" or "warn")
+			return
+		end
+	end
+end
+
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp or UserInputService:GetFocusedTextBox() then return end
+	if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+	if ListeningFor then
+		local id = ListeningFor
+		ListeningFor = nil
+		if input.KeyCode == Enum.KeyCode.Escape then
+			Keybinds[id] = nil
+			notify("Unbound " .. id, "warn")
+		else
+			Keybinds[id] = input.KeyCode
+			notify("Bound " .. id .. " → " .. input.KeyCode.Name, "good")
+		end
+		return
+	end
+	for id, kc in pairs(Keybinds) do
+		if kc == input.KeyCode then
+			toggleFeature(id)
+		end
+	end
+end)
+
+local function keyName(id)
+	local k = Keybinds[id]
+	return k and k.Name or "None"
+end
+
+
+
+-- Register all bindable features
+RegisterFeature("reach", "Reach", function() return ReachConfig.Master end, function(v)
+	ReachConfig.Master=v
+	if not v then ReachBox.Size=Vector3.new(0,0,0); ReachBox.CFrame=CFrame.new(math.huge,math.huge,math.huge) end
+end)
+RegisterFeature("speed", "Speed", function() return CharSpeed.Enabled end, function(v) CharSpeed.Enabled=v end)
+RegisterFeature("infjump", "Infinite Jump", function() return InfJump end, function(v) InfJump=v end)
+RegisterFeature("powershot", "PowerShot", function() return PowerShot.Enabled end, function(v)
+	PowerShot.Enabled=v
+	if v then StartPowerShotWatch() else StopPowerShotWatch() end
+end)
+RegisterFeature("radar", "Radar", function() return RadarEnabled end, function(v)
+	if v then RadarEnabled=true; StartRadar() else StopRadar() end
+end)
+RegisterFeature("trajectory", "Trajectory", function() return BallPred.Enabled end, function(v)
+	BallPred.Enabled=v; if not v then ClearDump() end
+end)
+RegisterFeature("autocatch", "Auto Catch", function() return AutoCatch.Enabled end, function(v) AutoCatch.Enabled=v end)
+RegisterFeature("autodive", "Auto Dive", function() return AutoSave.Enabled end, function(v)
+	if v then StartAutoSave() else StopAutoSave() end
+end)
+RegisterFeature("gkhelper", "GK Helper", function() return GKHelper.Enabled end, function(v)
+	if v then StartGKHelper() else StopGKHelper() end
+end)
+RegisterFeature("gkv2", "Auto GK V2", function() return GKV2.Enabled end, function(v)
+	if v then StartGKV2() else StopGKV2() end
+end)
+RegisterFeature("autodribble", "Auto Dribble", function() return AutoConfig.DribbleEnabled end, function(v) AutoConfig.DribbleEnabled=v end)
+RegisterFeature("autoguard", "Auto Guard", function() return AutoConfig.GuardEnabled end, function(v) AutoConfig.GuardEnabled=v end)
+RegisterFeature("automoss", "Auto Moss", function() return AutoConfig.MossEnabled end, function(v) AutoConfig.MossEnabled=v end)
+RegisterFeature("mossv2", "Moss V2", function() return MossV2.Enabled end, function(v)
+	if v then StartMossV2() else StopMossV2() end
+end)
+RegisterFeature("aimv1", "Aimbot V1", function() return AimbotV1.Enabled end, function(v)
+	if v then StartAimbotV1() else StopAimbotV1() end
+end)
+RegisterFeature("aimv1assist", "V1 Assist", function() return AimbotV1.Assist end, function(v)
+	AimbotV1.Assist=v; if v and not AimbotV1.Enabled then StartAimbotV1() end
+end)
+RegisterFeature("aimv2", "Aimbot V2", function() return AimbotV2.Enabled end, function(v)
+	if v then StartAimbotV2() else StopAimbotV2() end
+end)
+RegisterFeature("aimv2auto", "V2 Auto Shot", function() return AimbotV2.Auto end, function(v)
+	AimbotV2.Auto=v; if v and not AimbotV2.Enabled then StartAimbotV2() end
+end)
+RegisterFeature("aimv2pass", "V2 Pass Assist", function() return AimbotV2.Pass end, function(v)
+	AimbotV2.Pass=v; if v and not AimbotV2.Enabled then StartAimbotV2() end
+end)
+RegisterFeature("menu", "Toggle Menu", function() return main.Visible end, function(v)
+	if v then show() else hide() end
+end)
+
+local settingsTab = makeTab("Settings", "⚙")
+settingsTab:Section("Mobile Buttons", "Size · lock · transparency · show")
+settingsTab:Toggle("Show Mobile Buttons", "Toggle all floating feature buttons", true, function(v)
+	MobileBtnConfig.Show = v
+	if not v then
+		for id in pairs(MobileButtons) do destroyMobileBtn(id) end
+	else
+		for _, f in ipairs(FeatureList) do
+			if f.id ~= "menu" then
+				createMobileBtn(f.id, f.label, function() toggleFeature(f.id) end)
+			end
+		end
+	end
+end)
+settingsTab:Toggle("Lock Buttons", "Freeze position (no drag)", false, function(v) MobileBtnConfig.Locked = v end)
+settingsTab:Slider("Button Size", "Mobile button pixel size", 32, 80, 48, function(v)
+	MobileBtnConfig.Size = v; applyMobileLookAll()
+end, " px")
+settingsTab:Slider("Button Transparency", "0 = solid, 1 = invisible", 0, 0.85, 0.15, function(v)
+	MobileBtnConfig.Transparency = v; applyMobileLookAll()
+end, "")
+settingsTab:Button("Rebuild Mobile Buttons", false, function()
+	for id in pairs(MobileButtons) do destroyMobileBtn(id) end
+	if MobileBtnConfig.Show then
+		for _, f in ipairs(FeatureList) do
+			if f.id ~= "menu" then
+				createMobileBtn(f.id, f.label, function() toggleFeature(f.id) end)
+			end
+		end
+	end
+	notify("Mobile buttons rebuilt", "good")
+end)
+settingsTab:Section("Keybinds", "Click Bind, press a key. Escape clears.")
+settingsTab:Label("Every feature below can be hotkeyed. Mobile buttons mirror the same list.")
+
+-- keybind rows as buttons that start listen
+for _, f in ipairs(FeatureList) do
+	local fid, flabel = f.id, f.label
+	settingsTab:Button("Bind: " .. flabel .. "  [" .. keyName(fid) .. "]", false, function()
+		ListeningFor = fid
+		notify("Press a key for " .. flabel .. " (Esc = clear)", "warn", 4)
+	end)
+end
+
+settingsTab:Section("Keybind Utils", nil)
+settingsTab:Button("Clear All Keybinds", false, function()
+	table.clear(Keybinds)
+	notify("All keybinds cleared", "warn")
+end)
+settingsTab:Label("Default: RightControl still toggles the main menu window.")
+
+-- spawn default mobile buttons once UI is up
+task.defer(function()
+	task.wait(0.5)
+	if MobileBtnConfig.Show then
+		for _, f in ipairs(FeatureList) do
+			if f.id ~= "menu" then
+				createMobileBtn(f.id, f.label, function() toggleFeature(f.id) end)
+			end
+		end
+	end
+end)
+
+
+local miscTab = makeTab("Misc", "M")
 miscTab:Section("Utility", nil)
 miscTab:Button("Notify Test", true, function() notify("Valkyrie.ui online","good") end)
 miscTab:Button("Unload", false, function()
@@ -1913,6 +2185,7 @@ miscTab:Button("Unload", false, function()
 		pcall(function() if ReachBox then ReachBox:Destroy() end end)
 		pcall(function() if orb then orb:Destroy() end end)
 		pcall(function() if mobileBar then mobileBar:Destroy() end end)
+		pcall(function() for id in pairs(MobileButtons) do destroyMobileBtn(id) end end)
 		pcall(function() gui:Destroy() end)
 		notify("Unloaded", "warn", 2)
 	end)
