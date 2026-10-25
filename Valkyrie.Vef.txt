@@ -959,7 +959,7 @@ local function IsBallCatchable(ball)
 	end
 	return true
 end
-local AutoCatch = {Enabled=false, Range=25, Cooldown=1, CatchType="High Catch", LastCatchTime=0, IsCatching=false, ManualEnabled=false}
+local AutoCatch = {Enabled=false, Range=4, Cooldown=1, CatchType="High Catch", LastCatchTime=0, IsCatching=false, ManualEnabled=false}
 local function PerformCatch(ball)
 	if not HasSaveTool() or not ToolManagment or not ball or not ball.Parent then return false end
 	if AutoCatch.IsCatching then return false end
@@ -994,14 +994,26 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 end)
 
 local AutoSave = {Enabled=false, Connection=nil, LastSaveTime=0, IsSaving=false}
-local AUTOSAVE_CONFIG = {GOAL_WIDTH=38, GOAL_HEIGHT=18, PITCH_GROUND_Y=5.5, MIN_VELOCITY=8, COOLDOWN=0.45}
+-- V1 tuned for close / low shots: early trigger, low min speed, strong low bias
+local AUTOSAVE_CONFIG = {
+	GOAL_WIDTH=38, GOAL_HEIGHT=18, PITCH_GROUND_Y=5.5,
+	MIN_VELOCITY=3,
+	COOLDOWN=0.34,
+	MAX_PRED_TIME=3.2,
+	GOAL_Z_GATE=60,
+	CLOSE_DIST=22,
+	LOW_Y=9.5,
+	CLOSE_TRIGGER=0.38,
+	CLOSE_FIRE_DIST=14,
+}
 local AutoSaveKeybinds = {Low_Dive=Enum.KeyCode.C, High_Dive=Enum.KeyCode.E, High_Catch=Enum.KeyCode.R, Low_Catch=Enum.KeyCode.F}
 local function GetDefendedGoalZ(gkPos) if gkPos.Z>0 then return 376,1 else return -376,-1 end end
 local function PredictBallAtGoal(ball, goalZ, travelDirZ)
 	local pos=ball.Position; local vel=ball.AssemblyLinearVelocity
-	if (travelDirZ>0 and vel.Z<=2) or (travelDirZ<0 and vel.Z>=-2) then return nil,nil end
+	if (travelDirZ>0 and vel.Z<=1) or (travelDirZ<0 and vel.Z>=-1) then return nil,nil end
 	local dz=goalZ-pos.Z; if (travelDirZ>0 and dz<=0) or (travelDirZ<0 and dz>=0) then return nil,nil end
-	local timeToGoal=dz/vel.Z; if timeToGoal<=0 or timeToGoal>2.5 then return nil,nil end
+	local timeToGoal=dz/vel.Z
+	if timeToGoal<=0 or timeToGoal>AUTOSAVE_CONFIG.MAX_PRED_TIME then return nil,nil end
 	local predictedX=pos.X+(vel.X*timeToGoal); local speed=vel.Magnitude; local effectiveGravity=196.2
 	if speed>50 then effectiveGravity=effectiveGravity*0.40 elseif speed>30 then effectiveGravity=effectiveGravity*0.65 end
 	local predictedY=pos.Y+(vel.Y*timeToGoal)-(0.5*effectiveGravity*(timeToGoal^2))
@@ -1013,14 +1025,17 @@ local function ExecuteSave(predictedPos)
 	AutoSave.IsSaving=true; AutoSave.LastSaveTime=tick()
 	local relativeTarget=HRP.CFrame:PointToObjectSpace(predictedPos); local deltaX=relativeTarget.X
 	local worldY=predictedPos.Y; local distFromCenter=math.abs(deltaX)
-	local isTopBins=(distFromCenter>=4.5 and worldY>=8); local isHigh=isTopBins or (worldY>=9.5)
-	local isCenter=distFromCenter<=3.2; local isLeft=deltaX<-3.2; local isRight=deltaX>3.2
+	-- bias low on skimmers / close ground shots
+	local isTopBins=(distFromCenter>=4.5 and worldY>=8.5)
+	local isHigh=isTopBins or (worldY>=AUTOSAVE_CONFIG.LOW_Y+1.5)
+	local isCenter=distFromCenter<=3.8
+	local isLeft=deltaX<-3.8; local isRight=deltaX>3.8
 	local dirKey=isRight and Enum.KeyCode.D or isLeft and Enum.KeyCode.A or isCenter and Enum.KeyCode.W or nil
 	local saveKey=isHigh and ((isCenter and not isTopBins) and AutoSaveKeybinds.High_Catch or AutoSaveKeybinds.High_Dive) or (isCenter and AutoSaveKeybinds.Low_Catch or AutoSaveKeybinds.Low_Dive)
 	task.spawn(function()
 		if dirKey then VirtualInputManager:SendKeyEvent(true,dirKey,false,game) end
 		VirtualInputManager:SendKeyEvent(true,saveKey,false,game)
-		task.delay(0.10, function()
+		task.delay(0.14, function()
 			VirtualInputManager:SendKeyEvent(false,saveKey,false,game)
 			if dirKey then VirtualInputManager:SendKeyEvent(false,dirKey,false,game) end
 		end)
@@ -1034,17 +1049,43 @@ local function StartAutoSave()
 		if tick()-AutoSave.LastSaveTime < AUTOSAVE_CONFIG.COOLDOWN then return end
 		if not HRP then return end
 		local goalZ, travelDirZ = GetDefendedGoalZ(HRP.Position)
-		if math.abs(HRP.Position.Z-goalZ)>45 then return end
+		if math.abs(HRP.Position.Z-goalZ)>AUTOSAVE_CONFIG.GOAL_Z_GATE then return end
 		for _, ball in ipairs(GetVEFBalls()) do
-			if ball.AssemblyLinearVelocity.Magnitude >= AUTOSAVE_CONFIG.MIN_VELOCITY then
-				local predictedGoalPos = PredictBallAtGoal(ball, goalZ, travelDirZ)
-				if predictedGoalPos and math.abs(predictedGoalPos.X)<=(AUTOSAVE_CONFIG.GOAL_WIDTH/2+4) and predictedGoalPos.Y<=AUTOSAVE_CONFIG.GOAL_HEIGHT then
-					local predictedGKPos, timeToGK = PredictBallAtGoal(ball, HRP.Position.Z, travelDirZ)
-					if predictedGKPos and timeToGK then
-						local relGK = HRP.CFrame:PointToObjectSpace(predictedGKPos)
-						local reachDist = math.abs(relGK.X)
-						local requiredTriggerTime = 0.18+(math.clamp(reachDist/20,0,1)*0.10)
-						if timeToGK <= requiredTriggerTime and timeToGK >= 0.005 then ExecuteSave(predictedGoalPos); break end
+			local speed = ball.AssemblyLinearVelocity.Magnitude
+			if speed < AUTOSAVE_CONFIG.MIN_VELOCITY then continue end
+			local ballDist = (ball.Position - HRP.Position).Magnitude
+			local isClose = ballDist <= AUTOSAVE_CONFIG.CLOSE_DIST
+			local isLowBall = ball.Position.Y <= AUTOSAVE_CONFIG.LOW_Y
+
+			-- close low path: react near feet even if goal-line pred is fuzzy
+			if isClose and isLowBall then
+				local toBall = ball.Position - HRP.Position
+				local approaching = toBall:Dot(ball.AssemblyLinearVelocity) < -1.5 or math.abs(ball.AssemblyLinearVelocity.Z) > 2.5
+				if approaching and ballDist <= AUTOSAVE_CONFIG.CLOSE_FIRE_DIST then
+					local side = HRP.CFrame:PointToObjectSpace(ball.Position)
+					local fakePred = Vector3.new(HRP.Position.X + side.X, math.max(ball.Position.Y, AUTOSAVE_CONFIG.PITCH_GROUND_Y), HRP.Position.Z)
+					ExecuteSave(fakePred)
+					break
+				end
+			end
+
+			local predictedGoalPos = PredictBallAtGoal(ball, goalZ, travelDirZ)
+			if predictedGoalPos and math.abs(predictedGoalPos.X)<=(AUTOSAVE_CONFIG.GOAL_WIDTH/2+6) and predictedGoalPos.Y<=AUTOSAVE_CONFIG.GOAL_HEIGHT then
+				local predictedGKPos, timeToGK = PredictBallAtGoal(ball, HRP.Position.Z, travelDirZ)
+				if predictedGKPos and timeToGK then
+					local relGK = HRP.CFrame:PointToObjectSpace(predictedGKPos)
+					local reachDist = math.abs(relGK.X)
+					local baseTrigger = 0.15 + (math.clamp(reachDist/16, 0, 1) * 0.14)
+					if isClose and isLowBall then
+						baseTrigger = math.max(baseTrigger, AUTOSAVE_CONFIG.CLOSE_TRIGGER)
+					elseif isClose then
+						baseTrigger = baseTrigger + 0.08
+					elseif isLowBall then
+						baseTrigger = baseTrigger + 0.04
+					end
+					if timeToGK <= baseTrigger and timeToGK >= 0.002 then
+						ExecuteSave(predictedGoalPos)
+						break
 					end
 				end
 			end
@@ -1056,6 +1097,81 @@ local function StopAutoSave()
 	if AutoSave.Connection then pcall(function() AutoSave.Connection:Disconnect() end); AutoSave.Connection=nil end
 	AutoSave.IsSaving=false
 end
+
+-- Auto Dive and Catch: after any dive is detected, auto-catch the ball in a short window
+local AutoDiveCatch = {
+	Enabled = false,
+	CatchWindow = 1.25,
+	CatchDelay = 0.12,
+	Range = 3,
+	CatchType = "High Catch",
+	LastTrigger = 0,
+	ActiveUntil = 0,
+	IsRunning = false,
+}
+local function DiveCatchAttempt()
+	if not HasSaveTool() or not ToolManagment or not HRP then return false end
+	if IsHoldingBall() then return false end
+	local ball = GetNearestBall(HRP, AutoDiveCatch.Range)
+	if not ball or not IsBallCatchable(ball) then return false end
+	local prev = AutoCatch.CatchType
+	AutoCatch.CatchType = AutoDiveCatch.CatchType
+	local ok = PerformCatch(ball)
+	AutoCatch.CatchType = prev
+	return ok
+end
+local function TriggerDiveCatch(source)
+	if not AutoDiveCatch.Enabled then return end
+	local now = tick()
+	if now - AutoDiveCatch.LastTrigger < 0.35 then return end
+	AutoDiveCatch.LastTrigger = now
+	AutoDiveCatch.ActiveUntil = now + AutoDiveCatch.CatchWindow
+	if AutoDiveCatch.IsRunning then return end
+	AutoDiveCatch.IsRunning = true
+	task.spawn(function()
+		task.wait(AutoDiveCatch.CatchDelay)
+		while tick() < AutoDiveCatch.ActiveUntil and AutoDiveCatch.Enabled do
+			if DiveCatchAttempt() then break end
+			task.wait(0.08)
+		end
+		AutoDiveCatch.IsRunning = false
+	end)
+end
+-- Hook ExecuteSave so Auto Dive triggers the catch window
+do
+	local _origExecuteSave = ExecuteSave
+	ExecuteSave = function(predictedPos)
+		_origExecuteSave(predictedPos)
+		TriggerDiveCatch("autosave")
+	end
+end
+-- Detect manual dives (C / E) while holding a save tool
+UserInputService.InputBegan:Connect(function(input, gpe)
+	if gpe or UserInputService:GetFocusedTextBox() then return end
+	if not AutoDiveCatch.Enabled then return end
+	if not HasSaveTool() then return end
+	if input.KeyCode == AutoSaveKeybinds.Low_Dive or input.KeyCode == AutoSaveKeybinds.High_Dive then
+		TriggerDiveCatch("manual")
+	end
+end)
+-- Soft detector: PlatformStand (common dive state)
+task.spawn(function()
+	local wasStand = false
+	while true do
+		task.wait(0.05)
+		if not AutoDiveCatch.Enabled then wasStand = false; continue end
+		local hum = Humanoid
+		if hum then
+			local stand = hum.PlatformStand == true
+			if stand and not wasStand then
+				TriggerDiveCatch("platformstand")
+			end
+			wasStand = stand
+		else
+			wasStand = false
+		end
+	end
+end)
 
 local GKHelper = {Enabled=false, Connection=nil, PredCircle=nil, InnerRing=nil, IsMoving=false}
 local GK_CONFIG = {GOAL_LINE_Z=364.5, GOAL_POST_LEFT_X=-19.05, GOAL_POST_RIGHT_X=20.14, CROSSBAR_Y=19.3, GROUND_Y=5, BALL_SPEED_THRESHOLD=35, PREDICTION_RANGE_Z=130, MOVE_SPEED=50, ORIGINAL_SPEED=20, GK_BASE_Z=360}
@@ -1511,6 +1627,7 @@ local function gk2Execute(pred, ball, ttg, goalZ, dirZ)
 	if not HRP or not Humanoid then return end
 	GKV2.saving = true
 	GKV2.lastSave = os.clock()
+	TriggerDiveCatch("gkv2")
 	HRP.CFrame = CFrame.lookAt(HRP.Position, HRP.Position + Vector3.new(0, 0, -dirZ))
 	local rel = HRP.CFrame:PointToObjectSpace(pred)
 	local isHigh = (pred.Y - GKV2.GROUND_Y) >= GKV2.SPLIT
@@ -2203,13 +2320,23 @@ visualsTab:Button("Pitch: Purple", false, function() SetPitchColor(Color3.fromRG
 local gkTab = makeTab("GK", "🧤")
 gkTab:Section("Auto Catch", "Automatically catches balls in range")
 gkTab:Toggle("Auto Catch", nil, false, function(v) AutoCatch.Enabled=v end)
-gkTab:Slider("Catch Range", "Max distance to auto-catch", 5, 50, 25, function(v) AutoCatch.Range=v end, " studs")
+gkTab:Slider("Catch Range", "Max distance to auto-catch", 1, 5, 4, function(v) AutoCatch.Range=v end, " studs")
 gkTab:Slider("Catch Cooldown", "Time between catch attempts", 0.5, 5, 1, function(v) AutoCatch.Cooldown=v end, " s")
 gkTab:Toggle("High Catch", "ON: High Catch | OFF: Low Catch", true, function(v) AutoCatch.CatchType=v and "High Catch" or "Low Catch" end)
 gkTab:Section("Manual Catch", nil)
 gkTab:Toggle("Enable Q Key", "use Q key for manual catch", false, function(v) AutoCatch.ManualEnabled=v end)
 gkTab:Section("Auto Save", nil)
 gkTab:Toggle("Auto Dive", "Dives for you", false, function(v) if v then StartAutoSave() else StopAutoSave() end end)
+gkTab:Section("Auto Dive and Catch", "After any dive is detected, auto-catch the ball")
+gkTab:Toggle("Auto Dive and Catch", "Catch right after dive (manual or auto)", false, function(v)
+	AutoDiveCatch.Enabled = v
+	notify("Auto Dive+Catch " .. (v and "ON" or "OFF"), v and "good" or "warn")
+end)
+gkTab:Slider("Catch Window", "Seconds after dive to keep trying catch", 0.4, 2.5, 1.25, function(v) AutoDiveCatch.CatchWindow = v end, " s")
+gkTab:Slider("Catch Delay", "Wait after dive before first catch", 0.05, 0.6, 0.12, function(v) AutoDiveCatch.CatchDelay = v end, " s")
+gkTab:Slider("Dive Catch Range", "Max distance for post-dive catch", 1, 5, 3, function(v) AutoDiveCatch.Range = v end, " studs")
+gkTab:Toggle("Dive Catch High", "ON: High Catch | OFF: Low Catch", true, function(v) AutoDiveCatch.CatchType = v and "High Catch" or "Low Catch" end)
+gkTab:Label("Triggers on: Auto Dive · manual C/E · PlatformStand")
 gkTab:Section("GK Helper", nil)
 gkTab:Toggle("GK Helper", "auto position to save shots", false, function(v) if v then StartGKHelper() else StopGKHelper() end end)
 
@@ -2488,6 +2615,10 @@ local function S_collectConfig()
 		CharSpeed = CharSpeed and {Enabled=CharSpeed.Enabled, Value=CharSpeed.Value} or nil,
 		AutoCatch = AutoCatch and {Enabled=AutoCatch.Enabled, Range=AutoCatch.Range, Cooldown=AutoCatch.Cooldown, CatchType=AutoCatch.CatchType, ManualEnabled=AutoCatch.ManualEnabled} or nil,
 		AutoSave = AutoSave and {Enabled=AutoSave.Enabled} or nil,
+		AutoDiveCatch = AutoDiveCatch and {
+			Enabled=AutoDiveCatch.Enabled, CatchWindow=AutoDiveCatch.CatchWindow, CatchDelay=AutoDiveCatch.CatchDelay,
+			Range=AutoDiveCatch.Range, CatchType=AutoDiveCatch.CatchType,
+		} or nil,
 		GKHelper = GKHelper and {Enabled=GKHelper.Enabled} or nil,
 		GKV2 = GKV2 and {Enabled=GKV2.Enabled, TRIGGER=GKV2.TRIGGER, COOLDOWN=GKV2.COOLDOWN} or nil,
 		AutoConfig = AutoConfig and {
@@ -2537,6 +2668,7 @@ local function S_applyConfig(data)
 	if data.CharSpeed and CharSpeed then merge(CharSpeed, data.CharSpeed) end
 	if data.AutoCatch and AutoCatch then merge(AutoCatch, data.AutoCatch) end
 	if data.AutoSave and AutoSave then merge(AutoSave, data.AutoSave) end
+	if data.AutoDiveCatch and AutoDiveCatch then merge(AutoDiveCatch, data.AutoDiveCatch) end
 	if data.GKHelper and GKHelper then merge(GKHelper, data.GKHelper) end
 	if data.GKV2 and GKV2 then merge(GKV2, data.GKV2) end
 	if data.AutoConfig and AutoConfig then merge(AutoConfig, data.AutoConfig) end
@@ -2632,6 +2764,9 @@ end)
 S_reg("autocatch","Auto Catch",function() return AutoCatch.Enabled end,function(v) AutoCatch.Enabled=v end)
 S_reg("autodive","Auto Dive",function() return AutoSave.Enabled end,function(v)
 	if v then StartAutoSave() else StopAutoSave() end
+end)
+S_reg("autodivecatch","Auto Dive and Catch",function() return AutoDiveCatch.Enabled end,function(v)
+	AutoDiveCatch.Enabled = v
 end)
 S_reg("gkhelper","GK Helper",function() return GKHelper.Enabled end,function(v)
 	if v then StartGKHelper() else StopGKHelper() end
@@ -2782,6 +2917,7 @@ miscTab:Button("Unload", false, function()
 		pcall(function() if BallPred then BallPred.Enabled = false end end)
 		pcall(function() CharSpeed.Enabled = false end)
 		pcall(function() AutoCatch.Enabled = false end)
+		pcall(function() AutoDiveCatch.Enabled = false end)
 		pcall(function()
 			AutoConfig.DribbleEnabled = false
 			AutoConfig.GuardEnabled = false
