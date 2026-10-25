@@ -1492,6 +1492,7 @@ local GKV2 = {
 	MAX_DIST = 115,
 	JUMP_DELAY = 0.085,
 	HOLD = 0.30,
+	MAGNET_RANGE = 5,
 	Keys = { LowDive = Enum.KeyCode.C, HighDive = Enum.KeyCode.E, HighCatch = Enum.KeyCode.R, LowCatch = Enum.KeyCode.F },
 }
 
@@ -1522,23 +1523,23 @@ end
 
 local function gk2Magnet(ball, isCatch, ttg, goalZ)
 	task.spawn(function()
-		task.wait(math.clamp(ttg * 0.25, 0.04, 0.15))
+		task.wait(math.clamp(ttg * 0.25, 0.04, 0.12))
 		local t0 = os.clock()
 		local fire = firetouchinterest or (syn and syn.firetouchinterest)
-		while os.clock() - t0 < 0.8 do
+		local range = GKV2.MAGNET_RANGE or 5
+		while os.clock() - t0 < 0.55 do
 			if not ball or not ball.Parent or not Character or not HRP then break end
 			local limb = Character:FindFirstChild("RightHand") or Character:FindFirstChild("LeftHand") or Character:FindFirstChild("Right Arm") or Character:FindFirstChild("Torso") or HRP
 			if limb then
 				local dist = (limb.Position - ball.Position).Magnitude
-				local toLine = math.abs(ball.Position.Z - goalZ)
-				if dist <= 12 or (math.abs(ball.Position.X) <= 24 and toLine <= 4 and dist <= 26) then
+				if dist <= range then
 					if fire then pcall(fire, ball, limb, 0); pcall(fire, ball, limb, 1) end
-					local contact = limb.Position + limb.CFrame.LookVector * 0.6
+					local contact = limb.Position + limb.CFrame.LookVector * 0.4
 					ball.CFrame = CFrame.new(contact)
 					if isCatch then
 						ball.AssemblyLinearVelocity = Vector3.zero
 					else
-						ball.AssemblyLinearVelocity = ((contact - HRP.Position).Unit + Vector3.new(0, 0.35, 0)) * 24
+						ball.AssemblyLinearVelocity = ((contact - HRP.Position).Unit + Vector3.new(0, 0.25, 0)) * 18
 					end
 					break
 				end
@@ -1768,6 +1769,157 @@ UserInputService.JumpRequest:Connect(function()
 end)
 
 
+
+-- NO COOLDOWN (tools / skills)
+local NoCooldown = {Enabled=false, conn=nil}
+local function NoCooldownHookTM()
+	local backpack = LocalPlayer:FindFirstChild("Backpack")
+	if not backpack then return end
+	local tmModule = backpack:FindFirstChild("ToolManagment")
+	if tmModule then
+		local ok, tm = pcall(require, tmModule)
+		if ok and tm then
+			tm.GetUsing = function()
+				if tm.GetWindStatus and tm.GetWindStatus() then return true end
+				return false
+			end
+		end
+	end
+	local rsModule = backpack:FindFirstChild("RagdollSetup")
+	if rsModule then
+		local ok, rs = pcall(require, rsModule)
+		if ok and rs then rs.Ragdoll = function() end end
+	end
+end
+local function StartNoCooldown()
+	if NoCooldown.conn then return end
+	NoCooldown.Enabled = true
+	NoCooldownHookTM()
+	NoCooldown.conn = RunService.Heartbeat:Connect(function()
+		if not NoCooldown.Enabled then return end
+		local character = LocalPlayer.Character
+		local backpack = LocalPlayer:FindFirstChild("Backpack")
+		local tm = nil
+		if backpack and backpack:FindFirstChild("ToolManagment") then
+			pcall(function() tm = require(backpack.ToolManagment) end)
+		end
+		local isWinding = false
+		if tm and tm.GetWindStatus then isWinding = tm.GetWindStatus() end
+		if not isWinding and character then
+			local humanoid = character:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				if humanoid.PlatformStand then humanoid.PlatformStand = false end
+				if humanoid.WalkSpeed == 0 then humanoid.WalkSpeed = 19 end
+			end
+		end
+		if not isWinding then
+			for _, container in ipairs({backpack, character}) do
+				if container then
+					for _, tool in ipairs(container:GetChildren()) do
+						if tool:IsA("Tool") then
+							for _, scr in ipairs(tool:GetChildren()) do
+								if scr:IsA("LocalScript") then
+									local ok, env = pcall(getsenv, scr)
+									if ok and env and env.Using == true then env.Using = false end
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+	end)
+end
+local function StopNoCooldown()
+	NoCooldown.Enabled = false
+	if NoCooldown.conn then pcall(function() NoCooldown.conn:Disconnect() end); NoCooldown.conn = nil end
+end
+LocalPlayer.CharacterAdded:Connect(function()
+	if NoCooldown.Enabled then task.wait(0.5); NoCooldownHookTM() end
+end)
+
+-- BALL MAGNET / REVERSE TP TACKLE
+local BallMagnet = {
+	Enabled = false,
+	Continuous = false,
+	TackleKey = Enum.KeyCode.C,
+	MagnetKey = Enum.KeyCode.V,
+	AutoEquip = true,
+	Distance = 2.0,
+	HeightOffset = 1.0,
+	ZeroVelocity = true,
+	inputConn = nil,
+	loopConn = nil,
+}
+local function BallMagnetGetBall()
+	local pitch = workspace:FindFirstChild("Pitch")
+	if pitch then
+		local balls = pitch:FindFirstChild("Balls")
+		if balls then
+			local vef = balls:FindFirstChild("VEF")
+			if vef and vef:IsA("BasePart") then return vef end
+		end
+	end
+	for _, v in ipairs(workspace:GetDescendants()) do
+		if v.Name == "VEF" and v:IsA("BasePart") then return v end
+	end
+	return nil
+end
+local function BallMagnetPull()
+	if not HRP or not Character or not Humanoid then return false end
+	local rl = Character:FindFirstChild("RL") or Character:FindFirstChild("Right Leg") or Character:FindFirstChild("RightFoot")
+	local ball = BallMagnetGetBall()
+	if not ball or not rl then return false end
+	local mf = ReplicatedStorage:FindFirstChild("Event") and ReplicatedStorage.Event:FindFirstChild("MainFunction")
+	if mf then
+		pcall(function() mf:InvokeServer("Ownership", ball, ball.Position, 0, 25) end)
+	end
+	local targetPos = HRP.Position + (HRP.CFrame.LookVector * BallMagnet.Distance) - Vector3.new(0, BallMagnet.HeightOffset, 0)
+	ball.CFrame = CFrame.new(targetPos)
+	if BallMagnet.ZeroVelocity then
+		ball.AssemblyLinearVelocity = Vector3.zero
+		ball.AssemblyAngularVelocity = Vector3.zero
+	end
+	local fire = firetouchinterest or (syn and syn.firetouchinterest)
+	if fire then
+		pcall(fire, rl, ball, 0)
+		task.wait()
+		pcall(fire, rl, ball, 1)
+	end
+	return true
+end
+local function BallMagnetOnTackle()
+	if not Humanoid then return end
+	if BallMagnet.AutoEquip and not Character:FindFirstChild("Tackle") then
+		local tackle = LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Tackle")
+		if tackle then Humanoid:EquipTool(tackle); task.wait(0.02) end
+	end
+	BallMagnetPull()
+end
+local function StartBallMagnet()
+	if BallMagnet.inputConn then return end
+	BallMagnet.Enabled = true
+	BallMagnet.inputConn = UserInputService.InputBegan:Connect(function(input, gp)
+		if gp or not BallMagnet.Enabled then return end
+		if input.KeyCode == BallMagnet.TackleKey then
+			BallMagnetOnTackle()
+		elseif input.KeyCode == BallMagnet.MagnetKey then
+			BallMagnet.Continuous = not BallMagnet.Continuous
+			notify("Ball Magnet " .. (BallMagnet.Continuous and "HOLD ON" or "HOLD OFF"), BallMagnet.Continuous and "good" or "warn")
+		end
+	end)
+	BallMagnet.loopConn = RunService.Heartbeat:Connect(function()
+		if BallMagnet.Enabled and BallMagnet.Continuous then
+			BallMagnetPull()
+		end
+	end)
+end
+local function StopBallMagnet()
+	BallMagnet.Enabled = false
+	BallMagnet.Continuous = false
+	if BallMagnet.inputConn then pcall(function() BallMagnet.inputConn:Disconnect() end); BallMagnet.inputConn = nil end
+	if BallMagnet.loopConn then pcall(function() BallMagnet.loopConn:Disconnect() end); BallMagnet.loopConn = nil end
+end
 
 -- POWERSHOT
 local PowerShot = {
@@ -2150,6 +2302,11 @@ end, " studs/s")
 playerTab:Toggle("Speed", "Extra movement speed", false, function(v) CharSpeed.Enabled=v end)
 playerTab:Slider("Speed Value", nil, 0, 10, 0, function(v) CharSpeed.Value=v end, "")
 playerTab:Toggle("Infinite Jump", nil, false, function(v) InfJump=v end)
+playerTab:Section("No Cooldown", "Remove tool / skill cooldowns")
+playerTab:Toggle("No Cooldown", "Clear Using flags + block ragdoll lock", false, function(v)
+	if v then StartNoCooldown(); notify("No Cooldown ON", "good")
+	else StopNoCooldown(); notify("No Cooldown OFF", "warn") end
+end)
 playerTab:Section("PowerShot / Shoot Speed", "Velocity multiplier on shots")
 playerTab:Toggle("PowerShot Master", "Enable shoot speed multiplier", false, function(v)
 	PowerShot.Enabled=v
@@ -2262,7 +2419,8 @@ gkTab:Toggle("Auto GK V2", "Penalty/shot auto dive with magnet net", false, func
 end)
 gkTab:Slider("V2 Trigger Time", "Seconds before goal line to dive", 0.2, 1.2, 0.65, function(v) GKV2.TRIGGER = v end, " s")
 gkTab:Slider("V2 Cooldown", "Delay between saves", 0.3, 1.5, 0.80, function(v) GKV2.COOLDOWN = v end, " s")
-gkTab:Label("V2: strict low/high split + post-hit magnet")
+gkTab:Slider("V2 Magnet Range", "Post-dive ball pull distance", 2, 12, 5, function(v) GKV2.MAGNET_RANGE = v end, " studs")
+gkTab:Label("V2: strict low/high split + tight 5-stud magnet")
 
 local autoTab = makeTab("Auto", "⚡")
 autoTab:Section("Auto Dribble", "Hotkey: K")
@@ -2290,6 +2448,16 @@ autoTab:Slider("Moss Magnet Range", "Ground magnet distance", 6, 30, 14, functio
 autoTab:Slider("Moss Air Range", "Air ball magnet distance", 10, 40, 22, function(v) MossV2.airRange = v end, " studs")
 autoTab:Label("Moss V2: V = ball TP | click/Q = shoot | jump = header")
 
+autoTab:Section("Ball Magnet Tackle", "TP ball to feet on tackle · C = pull · V = hold")
+autoTab:Toggle("Ball Magnet Master", "Enable ball magnet / reverse TP tackle", false, function(v)
+	if v then StartBallMagnet(); notify("Ball Magnet ON", "good")
+	else StopBallMagnet(); notify("Ball Magnet OFF", "warn") end
+end)
+autoTab:Toggle("Auto Equip Tackle", "Equip Tackle tool on C press", true, function(v) BallMagnet.AutoEquip = v end)
+autoTab:Toggle("Zero Velocity", "Kill ball momentum on pull", true, function(v) BallMagnet.ZeroVelocity = v end)
+autoTab:Slider("Pull Distance", "Studs in front of feet", 0.5, 5, 2, function(v) BallMagnet.Distance = v end, " studs")
+autoTab:Slider("Height Offset", "Vertical offset from HRP", 0, 2, 1, function(v) BallMagnet.HeightOffset = v end, "")
+autoTab:Label("C = pull + tackle · V = continuous magnet hold")
 
 local aimTab = makeTab("Aimbot", "🎯")
 aimTab:Section("Aimbot Goal V1", "Corner velocity assist (ZEX style)")
@@ -2530,7 +2698,12 @@ local function S_collectConfig()
 		AutoCatch = AutoCatch and {Enabled=AutoCatch.Enabled, Range=AutoCatch.Range, Cooldown=AutoCatch.Cooldown, CatchType=AutoCatch.CatchType, ManualEnabled=AutoCatch.ManualEnabled} or nil,
 		AutoSave = AutoSave and {Enabled=AutoSave.Enabled} or nil,
 		GKHelper = GKHelper and {Enabled=GKHelper.Enabled} or nil,
-		GKV2 = GKV2 and {Enabled=GKV2.Enabled, TRIGGER=GKV2.TRIGGER, COOLDOWN=GKV2.COOLDOWN} or nil,
+		GKV2 = GKV2 and {Enabled=GKV2.Enabled, TRIGGER=GKV2.TRIGGER, COOLDOWN=GKV2.COOLDOWN, MAGNET_RANGE=GKV2.MAGNET_RANGE} or nil,
+		NoCooldown = NoCooldown and {Enabled=NoCooldown.Enabled} or nil,
+		BallMagnet = BallMagnet and {
+			Enabled=BallMagnet.Enabled, AutoEquip=BallMagnet.AutoEquip, ZeroVelocity=BallMagnet.ZeroVelocity,
+			Distance=BallMagnet.Distance, HeightOffset=BallMagnet.HeightOffset,
+		} or nil,
 		AutoConfig = AutoConfig and {
 			DribbleEnabled=AutoConfig.DribbleEnabled, DribbleRadius=AutoConfig.DribbleRadius, DribblePred=AutoConfig.DribblePred,
 			GuardEnabled=AutoConfig.GuardEnabled, GuardStopDist=AutoConfig.GuardStopDist, GuardPred=AutoConfig.GuardPred,
@@ -2580,6 +2753,13 @@ local function S_applyConfig(data)
 	if data.AutoSave and AutoSave then merge(AutoSave, data.AutoSave) end
 	if data.GKHelper and GKHelper then merge(GKHelper, data.GKHelper) end
 	if data.GKV2 and GKV2 then merge(GKV2, data.GKV2) end
+	if data.NoCooldown and NoCooldown then
+		if data.NoCooldown.Enabled then StartNoCooldown() else StopNoCooldown() end
+	end
+	if data.BallMagnet and BallMagnet then
+		merge(BallMagnet, data.BallMagnet)
+		if data.BallMagnet.Enabled then StartBallMagnet() else StopBallMagnet() end
+	end
 	if data.AutoConfig and AutoConfig then merge(AutoConfig, data.AutoConfig) end
 	if data.MossV2 and MossV2 then merge(MossV2, data.MossV2) end
 	if data.AimbotV1 and AimbotV1 then merge(AimbotV1, data.AimbotV1) end
@@ -2663,6 +2843,12 @@ S_reg("speed","Speed",function() return CharSpeed.Enabled end,function(v) CharSp
 S_reg("infjump","Infinite Jump",function() return InfJump end,function(v) InfJump=v end)
 S_reg("powershot","PowerShot",function() return PowerShot.Enabled end,function(v)
 	PowerShot.Enabled=v; if v then StartPowerShotWatch() else StopPowerShotWatch() end
+end)
+S_reg("nocooldown","No Cooldown",function() return NoCooldown.Enabled end,function(v)
+	if v then StartNoCooldown() else StopNoCooldown() end
+end)
+S_reg("ballmagnet","Ball Magnet",function() return BallMagnet.Enabled end,function(v)
+	if v then StartBallMagnet() else StopBallMagnet() end
 end)
 S_reg("radar","Radar",function() return RadarEnabled end,function(v)
 	if v then RadarEnabled=true; StartRadar() else StopRadar() end
@@ -2820,6 +3006,7 @@ miscTab:Button("Unload", false, function()
 		pcall(function() ReachConfig.Master = false end)
 		pcall(StopRadar); pcall(StopAutoSave); pcall(StopGKHelper); pcall(ClearDump)
 		pcall(StopAimbotV1); pcall(StopAimbotV2); pcall(StopGKV2); pcall(StopMossV2); pcall(StopPowerShotWatch)
+		pcall(StopNoCooldown); pcall(StopBallMagnet)
 		pcall(function() if BallPred then BallPred.Enabled = false end end)
 		pcall(function() CharSpeed.Enabled = false end)
 		pcall(function() AutoCatch.Enabled = false end)
