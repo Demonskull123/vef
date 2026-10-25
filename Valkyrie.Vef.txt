@@ -1098,81 +1098,6 @@ local function StopAutoSave()
 	AutoSave.IsSaving=false
 end
 
--- Auto Dive and Catch: after any dive is detected, auto-catch the ball in a short window
-local AutoDiveCatch = {
-	Enabled = false,
-	CatchWindow = 1.25,
-	CatchDelay = 0.12,
-	Range = 3,
-	CatchType = "High Catch",
-	LastTrigger = 0,
-	ActiveUntil = 0,
-	IsRunning = false,
-}
-local function DiveCatchAttempt()
-	if not HasSaveTool() or not ToolManagment or not HRP then return false end
-	if IsHoldingBall() then return false end
-	local ball = GetNearestBall(HRP, AutoDiveCatch.Range)
-	if not ball or not IsBallCatchable(ball) then return false end
-	local prev = AutoCatch.CatchType
-	AutoCatch.CatchType = AutoDiveCatch.CatchType
-	local ok = PerformCatch(ball)
-	AutoCatch.CatchType = prev
-	return ok
-end
-local function TriggerDiveCatch(source)
-	if not AutoDiveCatch.Enabled then return end
-	local now = tick()
-	if now - AutoDiveCatch.LastTrigger < 0.35 then return end
-	AutoDiveCatch.LastTrigger = now
-	AutoDiveCatch.ActiveUntil = now + AutoDiveCatch.CatchWindow
-	if AutoDiveCatch.IsRunning then return end
-	AutoDiveCatch.IsRunning = true
-	task.spawn(function()
-		task.wait(AutoDiveCatch.CatchDelay)
-		while tick() < AutoDiveCatch.ActiveUntil and AutoDiveCatch.Enabled do
-			if DiveCatchAttempt() then break end
-			task.wait(0.08)
-		end
-		AutoDiveCatch.IsRunning = false
-	end)
-end
--- Hook ExecuteSave so Auto Dive triggers the catch window
-do
-	local _origExecuteSave = ExecuteSave
-	ExecuteSave = function(predictedPos)
-		_origExecuteSave(predictedPos)
-		TriggerDiveCatch("autosave")
-	end
-end
--- Detect manual dives (C / E) while holding a save tool
-UserInputService.InputBegan:Connect(function(input, gpe)
-	if gpe or UserInputService:GetFocusedTextBox() then return end
-	if not AutoDiveCatch.Enabled then return end
-	if not HasSaveTool() then return end
-	if input.KeyCode == AutoSaveKeybinds.Low_Dive or input.KeyCode == AutoSaveKeybinds.High_Dive then
-		TriggerDiveCatch("manual")
-	end
-end)
--- Soft detector: PlatformStand (common dive state)
-task.spawn(function()
-	local wasStand = false
-	while true do
-		task.wait(0.05)
-		if not AutoDiveCatch.Enabled then wasStand = false; continue end
-		local hum = Humanoid
-		if hum then
-			local stand = hum.PlatformStand == true
-			if stand and not wasStand then
-				TriggerDiveCatch("platformstand")
-			end
-			wasStand = stand
-		else
-			wasStand = false
-		end
-	end
-end)
-
 local GKHelper = {Enabled=false, Connection=nil, PredCircle=nil, InnerRing=nil, IsMoving=false}
 local GK_CONFIG = {GOAL_LINE_Z=364.5, GOAL_POST_LEFT_X=-19.05, GOAL_POST_RIGHT_X=20.14, CROSSBAR_Y=19.3, GROUND_Y=5, BALL_SPEED_THRESHOLD=35, PREDICTION_RANGE_Z=130, MOVE_SPEED=50, ORIGINAL_SPEED=20, GK_BASE_Z=360}
 local function CleanupGKHelper()
@@ -1627,7 +1552,6 @@ local function gk2Execute(pred, ball, ttg, goalZ, dirZ)
 	if not HRP or not Humanoid then return end
 	GKV2.saving = true
 	GKV2.lastSave = os.clock()
-	TriggerDiveCatch("gkv2")
 	HRP.CFrame = CFrame.lookAt(HRP.Position, HRP.Position + Vector3.new(0, 0, -dirZ))
 	local rel = HRP.CFrame:PointToObjectSpace(pred)
 	local isHigh = (pred.Y - GKV2.GROUND_Y) >= GKV2.SPLIT
@@ -2327,16 +2251,6 @@ gkTab:Section("Manual Catch", nil)
 gkTab:Toggle("Enable Q Key", "use Q key for manual catch", false, function(v) AutoCatch.ManualEnabled=v end)
 gkTab:Section("Auto Save", nil)
 gkTab:Toggle("Auto Dive", "Dives for you", false, function(v) if v then StartAutoSave() else StopAutoSave() end end)
-gkTab:Section("Auto Dive and Catch", "After any dive is detected, auto-catch the ball")
-gkTab:Toggle("Auto Dive and Catch", "Catch right after dive (manual or auto)", false, function(v)
-	AutoDiveCatch.Enabled = v
-	notify("Auto Dive+Catch " .. (v and "ON" or "OFF"), v and "good" or "warn")
-end)
-gkTab:Slider("Catch Window", "Seconds after dive to keep trying catch", 0.4, 2.5, 1.25, function(v) AutoDiveCatch.CatchWindow = v end, " s")
-gkTab:Slider("Catch Delay", "Wait after dive before first catch", 0.05, 0.6, 0.12, function(v) AutoDiveCatch.CatchDelay = v end, " s")
-gkTab:Slider("Dive Catch Range", "Max distance for post-dive catch", 1, 5, 3, function(v) AutoDiveCatch.Range = v end, " studs")
-gkTab:Toggle("Dive Catch High", "ON: High Catch | OFF: Low Catch", true, function(v) AutoDiveCatch.CatchType = v and "High Catch" or "Low Catch" end)
-gkTab:Label("Triggers on: Auto Dive · manual C/E · PlatformStand")
 gkTab:Section("GK Helper", nil)
 gkTab:Toggle("GK Helper", "auto position to save shots", false, function(v) if v then StartGKHelper() else StopGKHelper() end end)
 
@@ -2615,10 +2529,6 @@ local function S_collectConfig()
 		CharSpeed = CharSpeed and {Enabled=CharSpeed.Enabled, Value=CharSpeed.Value} or nil,
 		AutoCatch = AutoCatch and {Enabled=AutoCatch.Enabled, Range=AutoCatch.Range, Cooldown=AutoCatch.Cooldown, CatchType=AutoCatch.CatchType, ManualEnabled=AutoCatch.ManualEnabled} or nil,
 		AutoSave = AutoSave and {Enabled=AutoSave.Enabled} or nil,
-		AutoDiveCatch = AutoDiveCatch and {
-			Enabled=AutoDiveCatch.Enabled, CatchWindow=AutoDiveCatch.CatchWindow, CatchDelay=AutoDiveCatch.CatchDelay,
-			Range=AutoDiveCatch.Range, CatchType=AutoDiveCatch.CatchType,
-		} or nil,
 		GKHelper = GKHelper and {Enabled=GKHelper.Enabled} or nil,
 		GKV2 = GKV2 and {Enabled=GKV2.Enabled, TRIGGER=GKV2.TRIGGER, COOLDOWN=GKV2.COOLDOWN} or nil,
 		AutoConfig = AutoConfig and {
@@ -2668,7 +2578,6 @@ local function S_applyConfig(data)
 	if data.CharSpeed and CharSpeed then merge(CharSpeed, data.CharSpeed) end
 	if data.AutoCatch and AutoCatch then merge(AutoCatch, data.AutoCatch) end
 	if data.AutoSave and AutoSave then merge(AutoSave, data.AutoSave) end
-	if data.AutoDiveCatch and AutoDiveCatch then merge(AutoDiveCatch, data.AutoDiveCatch) end
 	if data.GKHelper and GKHelper then merge(GKHelper, data.GKHelper) end
 	if data.GKV2 and GKV2 then merge(GKV2, data.GKV2) end
 	if data.AutoConfig and AutoConfig then merge(AutoConfig, data.AutoConfig) end
@@ -2764,9 +2673,6 @@ end)
 S_reg("autocatch","Auto Catch",function() return AutoCatch.Enabled end,function(v) AutoCatch.Enabled=v end)
 S_reg("autodive","Auto Dive",function() return AutoSave.Enabled end,function(v)
 	if v then StartAutoSave() else StopAutoSave() end
-end)
-S_reg("autodivecatch","Auto Dive and Catch",function() return AutoDiveCatch.Enabled end,function(v)
-	AutoDiveCatch.Enabled = v
 end)
 S_reg("gkhelper","GK Helper",function() return GKHelper.Enabled end,function(v)
 	if v then StartGKHelper() else StopGKHelper() end
@@ -2917,7 +2823,6 @@ miscTab:Button("Unload", false, function()
 		pcall(function() if BallPred then BallPred.Enabled = false end end)
 		pcall(function() CharSpeed.Enabled = false end)
 		pcall(function() AutoCatch.Enabled = false end)
-		pcall(function() AutoDiveCatch.Enabled = false end)
 		pcall(function()
 			AutoConfig.DribbleEnabled = false
 			AutoConfig.GuardEnabled = false
