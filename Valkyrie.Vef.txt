@@ -1,3 +1,8 @@
+--[[
+	Valkyrie.ui — UNIVERSAL · VEF
+	Mobile press fix · GK Helper mobile btn · solid config save/load
+]]
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -683,7 +688,7 @@ local function GetNearestBall(root, maxDist)
 	return closest, closestDist
 end
 
--- FEATURES (scoped to avoid Out of local registers)
+-- FEATURES
 local InfJump = false
 local WalkSpeedValue = 19
 local RadarEnabled = false
@@ -691,7 +696,6 @@ local RadarFrame = nil
 local SpoofTargetLimb = nil
 local FE = {}
 (function()
--- REACH (Kaiven exact names — original working version)
 local ReachConfig = {Master=false, Visualizer=false, ReachX=6, ReachY=7, ReachZ=6, Shoot=true, Pass=true, Long=true, Tackle=true, Dribble=true, Save=true}
 local ReachBox = Instance.new("Part"); ReachBox.Name = tostring(math.random(100000,999999))
 ReachBox.Size = Vector3.new(0,0,0); ReachBox.CFrame = CFrame.new(math.huge,math.huge,math.huge)
@@ -936,7 +940,6 @@ local function SetPitchColor(color)
 	end)
 end
 
--- GK
 local function HasSaveTool()
 	if not Character then return false end
 	return Character:FindFirstChild("Save") or Character:FindFirstChild("Clear") or Character:FindFirstChild("GK") or Character:FindFirstChild("Keeper")
@@ -992,17 +995,10 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 end)
 
 local AutoSave = {Enabled=false, Connection=nil, LastSaveTime=0, IsSaving=false}
--- V1 tuned for close / low shots: early trigger, low min speed, strong low bias
 local AUTOSAVE_CONFIG = {
 	GOAL_WIDTH=38, GOAL_HEIGHT=18, PITCH_GROUND_Y=5.5,
-	MIN_VELOCITY=3,
-	COOLDOWN=0.34,
-	MAX_PRED_TIME=3.2,
-	GOAL_Z_GATE=60,
-	CLOSE_DIST=22,
-	LOW_Y=9.5,
-	CLOSE_TRIGGER=0.38,
-	CLOSE_FIRE_DIST=14,
+	MIN_VELOCITY=3, COOLDOWN=0.34, MAX_PRED_TIME=3.2, GOAL_Z_GATE=60,
+	CLOSE_DIST=22, LOW_Y=9.5, CLOSE_TRIGGER=0.38, CLOSE_FIRE_DIST=14,
 }
 local AutoSaveKeybinds = {Low_Dive=Enum.KeyCode.C, High_Dive=Enum.KeyCode.E, High_Catch=Enum.KeyCode.R, Low_Catch=Enum.KeyCode.F}
 local function GetDefendedGoalZ(gkPos) if gkPos.Z>0 then return 376,1 else return -376,-1 end end
@@ -1023,7 +1019,6 @@ local function ExecuteSave(predictedPos)
 	AutoSave.IsSaving=true; AutoSave.LastSaveTime=tick()
 	local relativeTarget=HRP.CFrame:PointToObjectSpace(predictedPos); local deltaX=relativeTarget.X
 	local worldY=predictedPos.Y; local distFromCenter=math.abs(deltaX)
-	-- bias low on skimmers / close ground shots
 	local isTopBins=(distFromCenter>=4.5 and worldY>=8.5)
 	local isHigh=isTopBins or (worldY>=AUTOSAVE_CONFIG.LOW_Y+1.5)
 	local isCenter=distFromCenter<=3.8
@@ -1054,8 +1049,6 @@ local function StartAutoSave()
 			local ballDist = (ball.Position - HRP.Position).Magnitude
 			local isClose = ballDist <= AUTOSAVE_CONFIG.CLOSE_DIST
 			local isLowBall = ball.Position.Y <= AUTOSAVE_CONFIG.LOW_Y
-
-			-- close low path: react near feet even if goal-line pred is fuzzy
 			if isClose and isLowBall then
 				local toBall = ball.Position - HRP.Position
 				local approaching = toBall:Dot(ball.AssemblyLinearVelocity) < -1.5 or math.abs(ball.AssemblyLinearVelocity.Z) > 2.5
@@ -1066,7 +1059,6 @@ local function StartAutoSave()
 					break
 				end
 			end
-
 			local predictedGoalPos = PredictBallAtGoal(ball, goalZ, travelDirZ)
 			if predictedGoalPos and math.abs(predictedGoalPos.X)<=(AUTOSAVE_CONFIG.GOAL_WIDTH/2+6) and predictedGoalPos.Y<=AUTOSAVE_CONFIG.GOAL_HEIGHT then
 				local predictedGKPos, timeToGK = PredictBallAtGoal(ball, HRP.Position.Z, travelDirZ)
@@ -1200,28 +1192,13 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 end)
 LocalPlayer.Idled:Connect(function() pcall(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end) end)
 
-
--- ============================================================
--- AIMBOT GOAL V1 (Auto Top Bins style - corner velocity assist)
--- ============================================================
 local AimbotV1 = {
-	Enabled = false,
-	Assist = false,
-	Hud = false,
-	Strength = 0.12,
-	MinSpeed = 25,
-	ReleaseSpeed = 15,
-	ToggleKey = Enum.KeyCode.H,
-	AssistKey = Enum.KeyCode.V,
-	SwapKey = Enum.KeyCode.T,
-	lockedNet = nil,
-	shotLocked = false,
-	lockedPoint = nil,
-	conn = nil,
+	Enabled = false, Assist = false, Hud = false, Strength = 0.12, MinSpeed = 25, ReleaseSpeed = 15,
+	ToggleKey = Enum.KeyCode.H, AssistKey = Enum.KeyCode.V, SwapKey = Enum.KeyCode.T,
+	lockedNet = nil, shotLocked = false, lockedPoint = nil, conn = nil,
 	HOME = { FarLeft = Vector3.new(12, 12, -368), FarRight = Vector3.new(-11.5, 12, -368) },
 	AWAY = { FarLeft = Vector3.new(-11.5, 12, 368), FarRight = Vector3.new(12, 12, 368) },
 }
-
 local function a1GetBall()
 	local balls = GetVEFBalls and GetVEFBalls() or {}
 	local best, bd = nil, math.huge
@@ -1234,17 +1211,13 @@ local function a1GetBall()
 	end
 	return best
 end
-
 local function a1AttackNet()
 	if AimbotV1.lockedNet then return AimbotV1.lockedNet end
 	local team = LocalPlayer.Team
 	if team then
 		local n = team.Name:lower()
-		if n:find("away") or n:find("blue") or n:find("guest") then
-			AimbotV1.lockedNet = AimbotV1.HOME
-		elseif n:find("home") or n:find("red") then
-			AimbotV1.lockedNet = AimbotV1.AWAY
-		end
+		if n:find("away") or n:find("blue") or n:find("guest") then AimbotV1.lockedNet = AimbotV1.HOME
+		elseif n:find("home") or n:find("red") then AimbotV1.lockedNet = AimbotV1.AWAY end
 	end
 	if not AimbotV1.lockedNet and HRP then
 		local hc = (AimbotV1.HOME.FarLeft + AimbotV1.HOME.FarRight) / 2
@@ -1253,7 +1226,6 @@ local function a1AttackNet()
 	end
 	return AimbotV1.lockedNet or AimbotV1.AWAY
 end
-
 local function a1GK(net)
 	local best, md = nil, 80
 	local c = (net.FarLeft + net.FarRight) / 2
@@ -1268,7 +1240,6 @@ local function a1GK(net)
 	end
 	return best
 end
-
 local function StartAimbotV1()
 	if AimbotV1.conn then return end
 	AimbotV1.Enabled = true
@@ -1282,31 +1253,19 @@ local function StartAimbotV1()
 		local pos = ball.Position
 		local nc = (net.FarLeft + net.FarRight) / 2
 		local crossed = (net == AimbotV1.AWAY and pos.Z > nc.Z) or (net == AimbotV1.HOME and pos.Z < nc.Z)
-		if crossed then
-			AimbotV1.shotLocked = false
-			AimbotV1.lockedPoint = nil
-			return
-		end
+		if crossed then AimbotV1.shotLocked = false; AimbotV1.lockedPoint = nil; return end
 		local aim = net.FarLeft
 		local gk = a1GK(net)
 		local gkH = gk and gk.Character and gk.Character:FindFirstChild("HumanoidRootPart")
 		if gkH then
-			if (net.FarLeft - gkH.Position).Magnitude > (net.FarRight - gkH.Position).Magnitude then
-				aim = net.FarLeft
-			else
-				aim = net.FarRight
-			end
+			if (net.FarLeft - gkH.Position).Magnitude > (net.FarRight - gkH.Position).Magnitude then aim = net.FarLeft else aim = net.FarRight end
 		else
 			aim = (HRP.Position.X < nc.X) and net.FarRight or net.FarLeft
 		end
 		if speed >= AimbotV1.MinSpeed then
-			if not AimbotV1.shotLocked then
-				AimbotV1.shotLocked = true
-				AimbotV1.lockedPoint = aim
-			end
+			if not AimbotV1.shotLocked then AimbotV1.shotLocked = true; AimbotV1.lockedPoint = aim end
 		elseif speed < AimbotV1.ReleaseSpeed then
-			AimbotV1.shotLocked = false
-			AimbotV1.lockedPoint = nil
+			AimbotV1.shotLocked = false; AimbotV1.lockedPoint = nil
 		end
 		local target = AimbotV1.shotLocked and AimbotV1.lockedPoint or aim
 		if AimbotV1.shotLocked and target and speed > 0.1 then
@@ -1323,14 +1282,10 @@ local function StartAimbotV1()
 		end
 	end)
 end
-
 local function StopAimbotV1()
-	AimbotV1.Enabled = false
-	AimbotV1.Assist = false
-	AimbotV1.shotLocked = false
+	AimbotV1.Enabled = false; AimbotV1.Assist = false; AimbotV1.shotLocked = false
 	if AimbotV1.conn then pcall(function() AimbotV1.conn:Disconnect() end); AimbotV1.conn = nil end
 end
-
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp or not AimbotV1.Enabled then return end
 	if input.KeyCode == AimbotV1.AssistKey then
@@ -1342,36 +1297,23 @@ UserInputService.InputBegan:Connect(function(input, gp)
 	end
 end)
 
--- ============================================================
--- AIMBOT GOAL V2 (TB-style auto top bins + pass assist core)
--- ============================================================
 local AimbotV2 = {
-	Enabled = false,
-	Auto = false,
-	Pass = false,
-	Strength = 0.18,
-	MinShot = 18,
-	MaxTime = 4.5,
-	conn = nil,
-	passConn = nil,
-	activeUntil = 0,
+	Enabled = false, Auto = false, Pass = false, Strength = 0.18, MinShot = 18, MaxTime = 4.5,
+	conn = nil, passConn = nil, activeUntil = 0,
 	HOME = { TL = Vector3.new(-15.51, 16.2, 366.80), TR = Vector3.new(16.59, 16.2, 366.80) },
 	AWAY = { TL = Vector3.new(16.59, 16.2, -367.76), TR = Vector3.new(-15.51, 16.2, -367.76) },
 }
-
 local function a2Goals()
 	local team = LocalPlayer.Team and LocalPlayer.Team.Name or ""
 	if team:find("Away") then return AimbotV2.AWAY end
 	return AimbotV2.HOME
 end
-
 local function a2PickCorner(ball, goal)
 	local l, r = goal.TL, goal.TR
 	local c = (l + r) / 2
 	local vel = ball.AssemblyLinearVelocity
 	local hv = Vector3.new(vel.X, 0, vel.Z)
 	if hv.Magnitude < 1 then return l end
-	-- pick corner farther from predicted impact vs GK
 	local bestGK, md = nil, 90
 	for _, pl in ipairs(Players:GetPlayers()) do
 		if pl ~= LocalPlayer and pl.Team ~= LocalPlayer.Team then
@@ -1379,12 +1321,9 @@ local function a2PickCorner(ball, goal)
 			if h and (h.Position - c).Magnitude < md then bestGK, md = h, (h.Position - c).Magnitude end
 		end
 	end
-	if bestGK then
-		return ((l - bestGK.Position).Magnitude > (r - bestGK.Position).Magnitude) and l or r
-	end
+	if bestGK then return ((l - bestGK.Position).Magnitude > (r - bestGK.Position).Magnitude) and l or r end
 	return (ball.Position.X < c.X) and r or l
 end
-
 local function StartAimbotV2()
 	if AimbotV2.conn then return end
 	AimbotV2.Enabled = true
@@ -1409,8 +1348,6 @@ local function StartAimbotV2()
 		if blend.Magnitude > 0.1 then blend = blend.Unit * speed end
 		ball.AssemblyLinearVelocity = Vector3.new(blend.X, vel.Y, blend.Z)
 	end)
-
-	-- pass assist: redirect near-pass toward nearest teammate
 	if AimbotV2.passConn then pcall(function() AimbotV2.passConn:Disconnect() end) end
 	local prevSpeeds = {}
 	AimbotV2.passConn = RunService.Heartbeat:Connect(function()
@@ -1452,15 +1389,11 @@ local function StartAimbotV2()
 		end
 	end)
 end
-
 local function StopAimbotV2()
-	AimbotV2.Enabled = false
-	AimbotV2.Auto = false
-	AimbotV2.Pass = false
+	AimbotV2.Enabled = false; AimbotV2.Auto = false; AimbotV2.Pass = false
 	if AimbotV2.conn then pcall(function() AimbotV2.conn:Disconnect() end); AimbotV2.conn = nil end
 	if AimbotV2.passConn then pcall(function() AimbotV2.passConn:Disconnect() end); AimbotV2.passConn = nil end
 end
-
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp or not AimbotV2.Enabled then return end
 	if input.KeyCode == Enum.KeyCode.J then
@@ -1472,28 +1405,12 @@ UserInputService.InputBegan:Connect(function(input, gp)
 	end
 end)
 
--- ============================================================
--- AUTO GK V2 (VRF AI style - strict low/high dive + magnet)
--- ============================================================
 local GKV2 = {
-	Enabled = false,
-	conn = nil,
-	lastSave = 0,
-	saving = false,
-	GOAL_WIDTH = 42,
-	GOAL_HEIGHT = 19,
-	GROUND_Y = 5.5,
-	SPLIT = 5.2,
-	TRIGGER = 0.65,
-	COOLDOWN = 0.80,
-	MIN_SPEED = 6,
-	MAX_DIST = 115,
-	JUMP_DELAY = 0.085,
-	HOLD = 0.30,
-	MAGNET_RANGE = 5,
+	Enabled = false, conn = nil, lastSave = 0, saving = false,
+	GOAL_WIDTH = 42, GOAL_HEIGHT = 19, GROUND_Y = 5.5, SPLIT = 5.2, TRIGGER = 0.65,
+	COOLDOWN = 0.80, MIN_SPEED = 6, MAX_DIST = 115, JUMP_DELAY = 0.085, HOLD = 0.30, MAGNET_RANGE = 5,
 	Keys = { LowDive = Enum.KeyCode.C, HighDive = Enum.KeyCode.E, HighCatch = Enum.KeyCode.R, LowCatch = Enum.KeyCode.F },
 }
-
 local function gk2GoalZ(hrpZ)
 	local pitch = workspace:FindFirstChild("Pitch")
 	if pitch and pitch:FindFirstChild("GLT") then
@@ -1505,7 +1422,6 @@ local function gk2GoalZ(hrpZ)
 	end
 	return (hrpZ > 0) and 376 or -376, (hrpZ > 0) and 1 or -1
 end
-
 local function gk2Predict(ball, targetZ, dirZ)
 	local pos, vel = ball.Position, ball.AssemblyLinearVelocity
 	if (dirZ > 0 and vel.Z <= 1.5) or (dirZ < 0 and vel.Z >= -1.5) then return nil, nil end
@@ -1518,7 +1434,6 @@ local function gk2Predict(ball, targetZ, dirZ)
 	py = math.max(py, GKV2.GROUND_Y)
 	return Vector3.new(pos.X + vel.X * t, py, targetZ), t
 end
-
 local function gk2Magnet(ball, isCatch, ttg, goalZ)
 	task.spawn(function()
 		task.wait(math.clamp(ttg * 0.25, 0.04, 0.12))
@@ -1534,11 +1449,8 @@ local function gk2Magnet(ball, isCatch, ttg, goalZ)
 					if fire then pcall(fire, ball, limb, 0); pcall(fire, ball, limb, 1) end
 					local contact = limb.Position + limb.CFrame.LookVector * 0.4
 					ball.CFrame = CFrame.new(contact)
-					if isCatch then
-						ball.AssemblyLinearVelocity = Vector3.zero
-					else
-						ball.AssemblyLinearVelocity = ((contact - HRP.Position).Unit + Vector3.new(0, 0.25, 0)) * 18
-					end
+					if isCatch then ball.AssemblyLinearVelocity = Vector3.zero
+					else ball.AssemblyLinearVelocity = ((contact - HRP.Position).Unit + Vector3.new(0, 0.25, 0)) * 18 end
 					break
 				end
 			end
@@ -1546,11 +1458,9 @@ local function gk2Magnet(ball, isCatch, ttg, goalZ)
 		end
 	end)
 end
-
 local function gk2Execute(pred, ball, ttg, goalZ, dirZ)
 	if not HRP or not Humanoid then return end
-	GKV2.saving = true
-	GKV2.lastSave = os.clock()
+	GKV2.saving = true; GKV2.lastSave = os.clock()
 	HRP.CFrame = CFrame.lookAt(HRP.Position, HRP.Position + Vector3.new(0, 0, -dirZ))
 	local rel = HRP.CFrame:PointToObjectSpace(pred)
 	local isHigh = (pred.Y - GKV2.GROUND_Y) >= GKV2.SPLIT
@@ -1575,7 +1485,6 @@ local function gk2Execute(pred, ball, ttg, goalZ, dirZ)
 	end)
 	task.delay(GKV2.COOLDOWN, function() GKV2.saving = false end)
 end
-
 local function StartGKV2()
 	if GKV2.conn then return end
 	GKV2.Enabled = true
@@ -1600,36 +1509,17 @@ local function StartGKV2()
 		end
 	end)
 end
-
 local function StopGKV2()
 	GKV2.Enabled = false
 	if GKV2.conn then pcall(function() GKV2.conn:Disconnect() end); GKV2.conn = nil end
 end
 
--- ============================================================
--- MOSS V2 (magnet + header + ball TP + click spam)
--- ============================================================
 local MossV2 = {
-	Enabled = false,
-	Magnet = true,
-	Header = true,
-	AutoShoot = true,
-	BallTP = true,
-	magnetRange = 14,
-	airRange = 22,
-	smooth = 0.35,
-	shotCooldown = 0.60,
-	headerDelay = 0.20,
-	headerPower = 58,
-	headerUp = 18,
-	tpDist = 50,
-	exemptUntil = 0,
-	loop = nil,
-	auto = nil,
-	ToggleKey = Enum.KeyCode.T,
-	TPKey = Enum.KeyCode.V,
+	Enabled = false, Magnet = true, Header = true, AutoShoot = true, BallTP = true,
+	magnetRange = 14, airRange = 22, smooth = 0.35, shotCooldown = 0.60, headerDelay = 0.20,
+	headerPower = 58, headerUp = 18, tpDist = 50, exemptUntil = 0, loop = nil, auto = nil,
+	ToggleKey = Enum.KeyCode.T, TPKey = Enum.KeyCode.V,
 }
-
 local function mossBall()
 	local best, bd = nil, math.huge
 	if not HRP then return nil, math.huge end
@@ -1641,11 +1531,7 @@ local function mossBall()
 	end
 	return best, bd
 end
-
-local function mossOwn(ball)
-	pcall(function() ball:SetNetworkOwner(LocalPlayer) end)
-end
-
+local function mossOwn(ball) pcall(function() ball:SetNetworkOwner(LocalPlayer) end) end
 local function mossMagnetTick()
 	if not MossV2.Enabled or not MossV2.Magnet then return end
 	if tick() < MossV2.exemptUntil then return end
@@ -1663,7 +1549,6 @@ local function mossMagnetTick()
 	local want = (target - ball.Position) * (air and 28 or 24)
 	ball.AssemblyLinearVelocity = cur:Lerp(want, MossV2.smooth)
 end
-
 local function mossTP()
 	if not MossV2.Enabled or not MossV2.BallTP or not HRP then return end
 	if tick() < MossV2.exemptUntil then return end
@@ -1682,7 +1567,6 @@ local function mossTP()
 		end
 	end)
 end
-
 local function mossShoot()
 	if not MossV2.Enabled then return end
 	local tool = Character and Character:FindFirstChildOfClass("Tool")
@@ -1697,15 +1581,11 @@ local function mossShoot()
 		end)
 	end
 end
-
 local function StartMossV2()
 	if MossV2.loop then return end
 	MossV2.Enabled = true
 	MossV2.loop = task.spawn(function()
-		while MossV2.Enabled do
-			pcall(mossMagnetTick)
-			task.wait(0.016)
-		end
+		while MossV2.Enabled do pcall(mossMagnetTick); task.wait(0.016) end
 		MossV2.loop = nil
 	end)
 	MossV2.auto = task.spawn(function()
@@ -1722,22 +1602,15 @@ local function StartMossV2()
 		MossV2.auto = nil
 	end)
 end
-
 local function StopMossV2()
-	MossV2.Enabled = false
-	MossV2.loop = nil
-	MossV2.auto = nil
+	MossV2.Enabled = false; MossV2.loop = nil; MossV2.auto = nil
 end
-
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end
-		if not MossV2.Enabled then return end
+	if not MossV2.Enabled then return end
 	if input.KeyCode == MossV2.TPKey then mossTP(); return end
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.KeyCode == Enum.KeyCode.Q then
-		mossShoot()
-	end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.KeyCode == Enum.KeyCode.Q then mossShoot() end
 end)
-
 UserInputService.JumpRequest:Connect(function()
 	if not MossV2.Enabled or not MossV2.Header or not HRP then return end
 	local head = Character and Character:FindFirstChild("Head")
@@ -1766,9 +1639,6 @@ UserInputService.JumpRequest:Connect(function()
 	end)
 end)
 
-
-
--- NO COOLDOWN (tools / skills)
 local NoCooldown = {Enabled=false, conn=nil}
 local function NoCooldownHookTM()
 	local backpack = LocalPlayer:FindFirstChild("Backpack")
@@ -1836,18 +1706,9 @@ LocalPlayer.CharacterAdded:Connect(function()
 	if NoCooldown.Enabled then task.wait(0.5); NoCooldownHookTM() end
 end)
 
--- BALL MAGNET / REVERSE TP TACKLE
 local BallMagnet = {
-	Enabled = false,
-	Continuous = false,
-	TackleKey = Enum.KeyCode.C,
-	MagnetKey = Enum.KeyCode.V,
-	AutoEquip = true,
-	Distance = 2.0,
-	HeightOffset = 1.0,
-	ZeroVelocity = true,
-	inputConn = nil,
-	loopConn = nil,
+	Enabled = false, Continuous = false, TackleKey = Enum.KeyCode.C, MagnetKey = Enum.KeyCode.V,
+	AutoEquip = true, Distance = 2.0, HeightOffset = 1.0, ZeroVelocity = true, inputConn = nil, loopConn = nil,
 }
 local function BallMagnetGetBall()
 	local pitch = workspace:FindFirstChild("Pitch")
@@ -1869,9 +1730,7 @@ local function BallMagnetPull()
 	local ball = BallMagnetGetBall()
 	if not ball or not rl then return false end
 	local mf = ReplicatedStorage:FindFirstChild("Event") and ReplicatedStorage.Event:FindFirstChild("MainFunction")
-	if mf then
-		pcall(function() mf:InvokeServer("Ownership", ball, ball.Position, 0, 25) end)
-	end
+	if mf then pcall(function() mf:InvokeServer("Ownership", ball, ball.Position, 0, 25) end) end
 	local targetPos = HRP.Position + (HRP.CFrame.LookVector * BallMagnet.Distance) - Vector3.new(0, BallMagnet.HeightOffset, 0)
 	ball.CFrame = CFrame.new(targetPos)
 	if BallMagnet.ZeroVelocity then
@@ -1879,11 +1738,7 @@ local function BallMagnetPull()
 		ball.AssemblyAngularVelocity = Vector3.zero
 	end
 	local fire = firetouchinterest or (syn and syn.firetouchinterest)
-	if fire then
-		pcall(fire, rl, ball, 0)
-		task.wait()
-		pcall(fire, rl, ball, 1)
-	end
+	if fire then pcall(fire, rl, ball, 0); task.wait(); pcall(fire, rl, ball, 1) end
 	return true
 end
 local function BallMagnetOnTackle()
@@ -1899,27 +1754,22 @@ local function StartBallMagnet()
 	BallMagnet.Enabled = true
 	BallMagnet.inputConn = UserInputService.InputBegan:Connect(function(input, gp)
 		if gp or not BallMagnet.Enabled then return end
-		if input.KeyCode == BallMagnet.TackleKey then
-			BallMagnetOnTackle()
+		if input.KeyCode == BallMagnet.TackleKey then BallMagnetOnTackle()
 		elseif input.KeyCode == BallMagnet.MagnetKey then
 			BallMagnet.Continuous = not BallMagnet.Continuous
 			notify("Ball Magnet " .. (BallMagnet.Continuous and "HOLD ON" or "HOLD OFF"), BallMagnet.Continuous and "good" or "warn")
 		end
 	end)
 	BallMagnet.loopConn = RunService.Heartbeat:Connect(function()
-		if BallMagnet.Enabled and BallMagnet.Continuous then
-			BallMagnetPull()
-		end
+		if BallMagnet.Enabled and BallMagnet.Continuous then BallMagnetPull() end
 	end)
 end
 local function StopBallMagnet()
-	BallMagnet.Enabled = false
-	BallMagnet.Continuous = false
+	BallMagnet.Enabled = false; BallMagnet.Continuous = false
 	if BallMagnet.inputConn then pcall(function() BallMagnet.inputConn:Disconnect() end); BallMagnet.inputConn = nil end
 	if BallMagnet.loopConn then pcall(function() BallMagnet.loopConn:Disconnect() end); BallMagnet.loopConn = nil end
 end
 
--- POWERSHOT
 local PowerShot = {
 	Enabled=false, Multiplier=1.5, MaxVel=300, SwapDelayMs=500, LastToolEquip=0, LastFire=0,
 	Moves={Shoot=true,Kick=true,Volley=false,Header=false},
@@ -1957,10 +1807,10 @@ local function StartPowerShotWatch()
 			break
 		end
 	end)
-endlocal function StopPowerShotWatch()
+end
+local function StopPowerShotWatch()
 	if powerShotFallbackConn then pcall(function() powerShotFallbackConn:Disconnect() end); powerShotFallbackConn=nil end
 end
-
 
 	FE.ReachConfig = ReachConfig
 	FE.ReachBox = ReachBox
@@ -2035,8 +1885,14 @@ end)
 local SKYBOX_PRESETS = {
 	["Default"] = nil,
 	["Space"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=5000 },
+	["Nebula"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=8000 },
+	["Galaxy"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=12000 },
+	["Deep Space"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=20000 },
+	["Night Sky"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=3000 },
+	["Sunset"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
+	["Cloudy"] = { SkyboxBk="rbxassetid://5705570148", SkyboxDn="rbxassetid://5705570242", SkyboxFt="rbxassetid://5705570342", SkyboxLf="rbxassetid://5705570451", SkyboxRt="rbxassetid://5705570548", SkyboxUp="rbxassetid://5705570630", StarCount=0 },
 }
-local SKY_NAMES = {"Default","Space"}
+local SKY_NAMES = {"Default","Space","Nebula","Galaxy","Deep Space","Night Sky","Sunset","Cloudy"}
 local function RemoveCustomSky()
 	pcall(function()
 		local existing = Lighting:FindFirstChild("Valkyrie_Sky")
@@ -2060,20 +1916,14 @@ local function ApplySkybox(name)
 end
 local TimeOfDayCfg = { Enabled=false, Value=14 }
 
--- VISUAL LIGHTING PRESETS (Dark / Light / Abundance / etc — no grass)
 local VisualFX = { Current = "Default", Saved = nil }
 local function CaptureLighting()
 	local s = {}
 	pcall(function()
-		s.Ambient = Lighting.Ambient
-		s.OutdoorAmbient = Lighting.OutdoorAmbient
-		s.Brightness = Lighting.Brightness
-		s.ClockTime = Lighting.ClockTime
-		s.FogColor = Lighting.FogColor
-		s.FogEnd = Lighting.FogEnd
-		s.FogStart = Lighting.FogStart
-		s.ExposureCompensation = Lighting.ExposureCompensation
-		s.GlobalShadows = Lighting.GlobalShadows
+		s.Ambient = Lighting.Ambient; s.OutdoorAmbient = Lighting.OutdoorAmbient
+		s.Brightness = Lighting.Brightness; s.ClockTime = Lighting.ClockTime
+		s.FogColor = Lighting.FogColor; s.FogEnd = Lighting.FogEnd; s.FogStart = Lighting.FogStart
+		s.ExposureCompensation = Lighting.ExposureCompensation; s.GlobalShadows = Lighting.GlobalShadows
 	end)
 	return s
 end
@@ -2099,13 +1949,46 @@ local VISUAL_PRESETS = {
 				Lighting.Ambient=s.Ambient; Lighting.OutdoorAmbient=s.OutdoorAmbient
 				Lighting.Brightness=s.Brightness; Lighting.FogColor=s.FogColor
 				Lighting.FogEnd=s.FogEnd; Lighting.FogStart=s.FogStart
-				Lighting.ExposureCompensation=s.ExposureCompensation
-				Lighting.GlobalShadows=s.GlobalShadows
+				Lighting.ExposureCompensation=s.ExposureCompensation; Lighting.GlobalShadows=s.GlobalShadows
 			end)
 		end
 	end,
+	["Dark"] = function()
+		ClearFX()
+		Lighting.Ambient = Color3.fromRGB(15,15,22); Lighting.OutdoorAmbient = Color3.fromRGB(25,25,35)
+		Lighting.Brightness = 0.6; Lighting.ExposureCompensation = -0.4
+		Lighting.FogColor = Color3.fromRGB(10,10,18); Lighting.FogStart = 40; Lighting.FogEnd = 400
+		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
+		cc.Brightness = -0.05; cc.Contrast = 0.25; cc.Saturation = -0.15; cc.TintColor = Color3.fromRGB(180,190,220)
+	end,
+	["Light"] = function()
+		ClearFX()
+		Lighting.Ambient = Color3.fromRGB(180,180,190); Lighting.OutdoorAmbient = Color3.fromRGB(200,200,210)
+		Lighting.Brightness = 3; Lighting.ExposureCompensation = 0.35; Lighting.FogStart = 0; Lighting.FogEnd = 100000
+		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
+		cc.Brightness = 0.08; cc.Contrast = 0.1; cc.Saturation = 0.05; cc.TintColor = Color3.fromRGB(255,255,255)
+		local bl = Ensure("BloomEffect","Valkyrie_Bloom"); bl.Intensity = 0.4; bl.Size = 24; bl.Threshold = 1.2
+	end,
+	["Abundance"] = function()
+		ClearFX()
+		Lighting.Ambient = Color3.fromRGB(90,70,120); Lighting.OutdoorAmbient = Color3.fromRGB(110,90,140)
+		Lighting.Brightness = 2.2; Lighting.ExposureCompensation = 0.2
+		Lighting.FogColor = Color3.fromRGB(80,50,120); Lighting.FogStart = 60; Lighting.FogEnd = 600
+		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
+		cc.Brightness = 0.05; cc.Contrast = 0.2; cc.Saturation = 0.35; cc.TintColor = Color3.fromRGB(230,200,255)
+		local bl = Ensure("BloomEffect","Valkyrie_Bloom"); bl.Intensity = 1.1; bl.Size = 40; bl.Threshold = 0.85
+		local rays = Ensure("SunRaysEffect","Valkyrie_Rays"); rays.Intensity = 0.15; rays.Spread = 0.6
+	end,
+	["Night"] = function()
+		ClearFX()
+		Lighting.Ambient = Color3.fromRGB(20,24,40); Lighting.OutdoorAmbient = Color3.fromRGB(30,35,55)
+		Lighting.Brightness = 0.8; Lighting.ClockTime = 0; Lighting.ExposureCompensation = -0.2
+		Lighting.FogColor = Color3.fromRGB(15,18,35); Lighting.FogStart = 30; Lighting.FogEnd = 350
+		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
+		cc.Brightness = -0.02; cc.Contrast = 0.2; cc.Saturation = -0.05; cc.TintColor = Color3.fromRGB(160,175,255)
+	end,
 }
-local VISUAL_NAMES = {"Default"}
+local VISUAL_NAMES = {"Default","Dark","Light","Abundance","Night"}
 local function ApplyVisual(name)
 	VisualFX.Current = name
 	local fn = VISUAL_PRESETS[name]
@@ -2168,7 +2051,6 @@ visualsTab:Section("Trajectory", "Shows ball trajectory prediction")
 visualsTab:Toggle("Trajectory", nil, false, function(v) BallPred.Enabled=v; if not v then ClearDump() end end)
 visualsTab:Slider("Trigger Speed", nil, 5, 60, 18, function(v) BallPred.Threshold=v end, "")
 visualsTab:Slider("Accuracy", nil, 4, 30, 12, function(v) BallPred.Accuracy=v end, "")
-
 visualsTab:Section("Skybox", "Pick sky from dropdown below")
 visualsTab:Toggle("Enable Skybox", "Apply custom sky locally", false, function(v)
 	SkyboxCfg.Enabled = v
@@ -2181,28 +2063,10 @@ visualsTab:Dropdown("Select Skybox", SKY_NAMES, SkyboxCfg.Current or "Default", 
 	if SkyboxCfg.Enabled then ApplySkybox(v) end
 	notify("Sky: "..v, "good", 1.5)
 end)
-visualsTab:Button("Random Skybox", false, function()
-	local v = SKY_NAMES[math.random(2, #SKY_NAMES)]
-	SkyboxCfg.Current = v
-	if SkyboxCfg.Enabled then ApplySkybox(v) end
-	notify("Sky: "..v, "good", 1.5)
-end)
-visualsTab:Button("Reset Skybox", false, function()
-	RemoveCustomSky()
-	if SkyboxCfg.OriginalSky then SkyboxCfg.OriginalSky.Parent = SkyboxCfg.OriginalSkyParent or Lighting end
-	SkyboxCfg.Current = "Default"
-	notify("Sky reset", "warn")
-end)
-visualsTab:Section("Visual Lighting", "Dark · Light · Abundance · more (no grass)")
+visualsTab:Section("Visual Lighting", "Dark · Light · Abundance · more")
 visualsTab:Dropdown("Visual Preset", VISUAL_NAMES, VisualFX.Current or "Default", function(v)
-	ApplyVisual(v)
-	notify("Visual: "..v, "good", 1.5)
+	ApplyVisual(v); notify("Visual: "..v, "good", 1.5)
 end)
-visualsTab:Button("Reset Visuals", false, function()
-	ApplyVisual("Default")
-	notify("Visuals reset", "warn")
-end)
-visualsTab:Label("Dark / Light / Abundance / Bright / Night / Soft / Warm / Cold / Noir / Vivid")
 visualsTab:Toggle("Custom Time of Day", "Lock clock time", false, function(v)
 	TimeOfDayCfg.Enabled = v
 	if v then Lighting.ClockTime = TimeOfDayCfg.Value end
@@ -2211,19 +2075,6 @@ visualsTab:Slider("Time (Hours)", "0-24 clock", 0, 24, 14, function(v)
 	TimeOfDayCfg.Value = v
 	if TimeOfDayCfg.Enabled then Lighting.ClockTime = v end
 end, " h")
-visualsTab:Button("Bright Ambient", false, function()
-	Lighting.Ambient = Color3.fromRGB(150,150,150)
-	Lighting.OutdoorAmbient = Color3.fromRGB(150,150,150)
-end)
-visualsTab:Button("Dark Ambient", false, function()
-	Lighting.Ambient = Color3.fromRGB(20,20,20)
-	Lighting.OutdoorAmbient = Color3.fromRGB(20,20,20)
-end)
-visualsTab:Button("Reset Ambient", false, function()
-	Lighting.Ambient = Color3.fromRGB(70,70,70)
-	Lighting.OutdoorAmbient = Color3.fromRGB(128,128,128)
-end)
-
 visualsTab:Section("Sky / Lighting", "World atmosphere")
 visualsTab:Button("Sky: Night", false, function() ApplyLighting("Night"); notify("Night sky","good") end)
 visualsTab:Button("Sky: Sunset", false, function() ApplyLighting("Sunset"); notify("Sunset sky","good") end)
@@ -2245,8 +2096,6 @@ gkTab:Section("Auto Save", nil)
 gkTab:Toggle("Auto Dive", "Dives for you", false, function(v) if v then StartAutoSave() else StopAutoSave() end end)
 gkTab:Section("GK Helper", nil)
 gkTab:Toggle("GK Helper", "auto position to save shots", false, function(v) if v then StartGKHelper() else StopGKHelper() end end)
-
-
 gkTab:Section("Auto GK V2", "VRF AI style low/high dive + magnet")
 gkTab:Toggle("Auto GK V2", "Penalty/shot auto dive with magnet net", false, function(v)
 	if v then StartGKV2(); notify("Auto GK V2 ON", "good")
@@ -2255,35 +2104,31 @@ end)
 gkTab:Slider("V2 Trigger Time", "Seconds before goal line to dive", 0.2, 1.2, 0.65, function(v) GKV2.TRIGGER = v end, " s")
 gkTab:Slider("V2 Cooldown", "Delay between saves", 0.3, 1.5, 0.80, function(v) GKV2.COOLDOWN = v end, " s")
 gkTab:Slider("V2 Magnet Range", "Post-dive ball pull distance", 2, 12, 5, function(v) GKV2.MAGNET_RANGE = v end, " studs")
-gkTab:Label("V2: strict low/high split + tight 5-stud magnet")
 
 local autoTab = makeTab("Auto", "⚡")
 autoTab:Section("Auto Dribble", "Hotkey: K")
-autoTab:Toggle("Auto Dribble", "Enable/Disable Auto Dribble (use hotkey to toggle on/off)", false, function(v) AutoConfig.DribbleEnabled=v end)
+autoTab:Toggle("Auto Dribble", "Enable/Disable Auto Dribble", false, function(v) AutoConfig.DribbleEnabled=v end)
 autoTab:Slider("Dribble Radius", nil, 0.5, 4, 1.2, function(v) AutoConfig.DribbleRadius=v end, "")
 autoTab:Slider("Dribble Prediction", nil, 0, 0.5, 0.14, function(v) AutoConfig.DribblePred=v end, "")
 autoTab:Section("Auto Guard", "Hotkey: L")
-autoTab:Toggle("Auto Guard", "Enable/Disable Auto Guard (use hotkey to toggle on/off)", false, function(v) AutoConfig.GuardEnabled=v end)
+autoTab:Toggle("Auto Guard", "Enable/Disable Auto Guard", false, function(v) AutoConfig.GuardEnabled=v end)
 autoTab:Slider("Stop Distance", nil, 0.5, 5, 1.5, function(v) AutoConfig.GuardStopDist=v end, "")
 autoTab:Slider("Prediction", nil, 0, 2, 0.5, function(v) AutoConfig.GuardPred=v end, "")
 autoTab:Section("Auto Moss", "Hotkey: M")
-autoTab:Toggle("Auto Moss", "Enable/Disable Auto Moss (use hotkey to toggle on/off)", false, function(v) AutoConfig.MossEnabled=v end)
+autoTab:Toggle("Auto Moss", "Enable/Disable Auto Moss", false, function(v) AutoConfig.MossEnabled=v end)
 autoTab:Slider("Activation Dist", nil, 10, 100, 50, function(v) AutoConfig.MossActivationDist=v end, " studs")
-
 autoTab:Section("Moss V2", "Magnet + header + ball TP + shoot")
-autoTab:Toggle("Moss V2 Master", "Full moss engine (magnet/header/tp)", false, function(v)
+autoTab:Toggle("Moss V2 Master", "Full moss engine", false, function(v)
 	if v then StartMossV2(); notify("Moss V2 ON", "good")
 	else StopMossV2(); notify("Moss V2 OFF", "warn") end
 end)
 autoTab:Toggle("Moss Magnet", "Pull ball toward you", true, function(v) MossV2.Magnet = v end)
-autoTab:Toggle("Moss Header Boost", "Jump = 200ms header lock", true, function(v) MossV2.Header = v end)
+autoTab:Toggle("Moss Header Boost", "Jump = header lock", true, function(v) MossV2.Header = v end)
 autoTab:Toggle("Moss Auto Shoot", "Auto activate shoot tool near ball", true, function(v) MossV2.AutoShoot = v end)
 autoTab:Toggle("Moss Ball TP [V]", "V key teleports ball in front", true, function(v) MossV2.BallTP = v end)
 autoTab:Slider("Moss Magnet Range", "Ground magnet distance", 6, 30, 14, function(v) MossV2.magnetRange = v end, " studs")
 autoTab:Slider("Moss Air Range", "Air ball magnet distance", 10, 40, 22, function(v) MossV2.airRange = v end, " studs")
-autoTab:Label("Moss V2: V = ball TP | click/Q = shoot | jump = header")
-
-autoTab:Section("Ball Magnet Tackle", "TP ball to feet on tackle · C = pull · V = hold")
+autoTab:Section("Ball Magnet Tackle", "TP ball to feet on tackle")
 autoTab:Toggle("Ball Magnet Master", "Enable ball magnet / reverse TP tackle", false, function(v)
 	if v then StartBallMagnet(); notify("Ball Magnet ON", "good")
 	else StopBallMagnet(); notify("Ball Magnet OFF", "warn") end
@@ -2292,10 +2137,9 @@ autoTab:Toggle("Auto Equip Tackle", "Equip Tackle tool on C press", true, functi
 autoTab:Toggle("Zero Velocity", "Kill ball momentum on pull", true, function(v) BallMagnet.ZeroVelocity = v end)
 autoTab:Slider("Pull Distance", "Studs in front of feet", 0.5, 5, 2, function(v) BallMagnet.Distance = v end, " studs")
 autoTab:Slider("Height Offset", "Vertical offset from HRP", 0, 2, 1, function(v) BallMagnet.HeightOffset = v end, "")
-autoTab:Label("C = pull + tackle · V = continuous magnet hold")
 
 local aimTab = makeTab("Aimbot", "🎯")
-aimTab:Section("Aimbot Goal V1", "Corner velocity assist (ZEX style)")
+aimTab:Section("Aimbot Goal V1", "Corner velocity assist")
 aimTab:Toggle("Enable V1", "Master switch for aimbot goal v1", false, function(v)
 	if v then StartAimbotV1(); notify("Aimbot Goal V1 ON", "good")
 	else StopAimbotV1(); notify("Aimbot Goal V1 OFF", "warn") end
@@ -2307,8 +2151,6 @@ aimTab:Toggle("V1 Assist [V]", "Curve shots to far corners", false, function(v)
 end)
 aimTab:Slider("V1 Strength", "Curve strength", 0.03, 0.30, 0.12, function(v) AimbotV1.Strength = v end, "")
 aimTab:Slider("V1 Min Speed", "Min ball speed to lock", 10, 60, 25, function(v) AimbotV1.MinSpeed = v end, "")
-aimTab:Label("V1: V = assist | T = swap net | far left/right only")
-
 aimTab:Section("Aimbot Goal V2", "TB-style auto bins + pass assist")
 aimTab:Toggle("Enable V2", "Master switch for aimbot goal v2", false, function(v)
 	if v then StartAimbotV2(); notify("Aimbot Goal V2 ON", "good")
@@ -2325,15 +2167,13 @@ aimTab:Toggle("V2 Pass Assist [K]", "Redirect passes to teammates", false, funct
 	notify("V2 Pass " .. (v and "ON" or "OFF"), v and "good" or "warn")
 end)
 aimTab:Slider("V2 Strength", "Auto curve strength", 0.05, 0.40, 0.18, function(v) AimbotV2.Strength = v end, "")
-aimTab:Label("V2: J = auto bins | K = pass assist")
-
-
 
 -- SETTINGS / KEYBINDS / MOBILE
 local S = {
 	Keybinds={}, Listen=nil, Features={}, MobileOn={}, MPos={}, MSize=48, MTrans=0.15, MLock=false, MShow=true, MBtns={}, MLayer=nil,
 	ShowCatchBtns=true, AutoLoadConfig=true, ConfigName="default",
 }
+S.ShowGKHelperBtn = true
 S.MLayer = fr(gui, 50); S.MLayer.Size=UDim2.fromScale(1,1); S.MLayer.ZIndex=50
 local function S_reg(id, label, getf, setf)
 	table.insert(S.Features, {id=id, label=label, get=getf, set=setf})
@@ -2348,70 +2188,133 @@ local function S_style(b)
 end
 local function S_lookAll()
 	for _,e in pairs(S.MBtns) do
-		if e.btn and e.btn.Parent then e.btn.Size=UDim2.fromOffset(S.MSize,S.MSize); S_style(e.btn) end
+		if e.btn and e.btn.Parent then
+			local s = S.MSize
+			e.btn.Size = UDim2.fromOffset(s, s)
+			S_style(e.btn)
+			if e.wrap then
+				local pad = 10
+				e.wrap.Size = UDim2.fromOffset(s + pad*2, s + pad*2)
+			end
+		end
 	end
 end
 local function S_kill(id)
 	local e=S.MBtns[id]; if not e then return end
-	pcall(function() if e.btn then e.btn:Destroy() end end); S.MBtns[id]=nil
+	pcall(function() if e.wrap then e.wrap:Destroy() elseif e.btn then e.btn:Destroy() end end); S.MBtns[id]=nil
 end
+
+-- FIXED MOBILE BUTTONS: any pixel of the button = one clean tap; drag only after real movement
+-- Per-button connections (no shared UIS handlers racing across buttons)
 local function S_makeBtn(id, label, onPress)
 	S_kill(id); if not S.MShow then return end
-	local s=S.MSize
-	local b=Instance.new("TextButton"); b.Name="MB_"..id; b.Size=UDim2.fromOffset(s,s)
-	local h=0; for i=1,#id do h=h+string.byte(id,i) end
+	local s = math.max(S.MSize or 48, 36)
+	local pad = 10 -- invisible hit padding so edge presses still count
+	local wrap = Instance.new("Frame")
+	wrap.Name = "MBW_"..id
+	wrap.BackgroundTransparency = 1
+	wrap.BorderSizePixel = 0
+	wrap.Size = UDim2.fromOffset(s + pad*2, s + pad*2)
+	wrap.ZIndex = 54
+	wrap.Active = true
+	wrap.Parent = S.MLayer
+
+	local h = 0
+	for i = 1, #id do h = h + string.byte(id, i) end
 	if S.MPos and S.MPos[id] then
-		b.Position=UDim2.fromOffset(S.MPos[id][1], S.MPos[id][2])
+		wrap.Position = UDim2.fromOffset(S.MPos[id][1] - pad, S.MPos[id][2] - pad)
 	else
-		b.Position=UDim2.new(1, -s-16-(h%3)*8, 0.2+(h%10)*0.06, 0)
+		wrap.Position = UDim2.new(1, -(s+pad*2) - 8 - (h%3)*8, 0.18 + (h%10)*0.055, 0)
 	end
-	b.Text=string.sub(label,1,6); b.ZIndex=55; b.Parent=S.MLayer; S_style(b)
-	
-	local dragging,startM,startP=false,nil,nil
-	local downAt, moved = nil, false
-	
-	b.InputBegan:Connect(function(i)
-		if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-			downAt = i.Position
-			moved = false
-			if not S.MLock then
-				dragging=true; startM=i.Position; startP=b.AbsolutePosition
-			end
-			tw(b, 0.1, {BackgroundTransparency = math.max(0, S.MTrans - 0.1)})
-		end
-	end)
-	
-	UserInputService.InputChanged:Connect(function(i)
-		if not dragging or S.MLock then return end
-		if i.UserInputType~=Enum.UserInputType.MouseMovement and i.UserInputType~=Enum.UserInputType.Touch then return end
-		if downAt and (i.Position - downAt).Magnitude > 8 then
-			moved = true
-			local d=i.Position-startM; local pa=S.MLayer.AbsolutePosition
-			b.Position=UDim2.fromOffset(startP.X+d.X-pa.X, startP.Y+d.Y-pa.Y); b.AnchorPoint=Vector2.new(0,0)
-		end
-	end)
-	
-	UserInputService.InputEnded:Connect(function(i)
-		if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-			if downAt then
-				if dragging then
-					dragging=false
-					S.MPos = S.MPos or {}
-					S.MPos[id] = {b.Position.X.Offset, b.Position.Y.Offset}
+
+	local b = Instance.new("TextButton")
+	b.Name = "MB_"..id
+	b.Size = UDim2.fromOffset(s, s)
+	b.Position = UDim2.fromOffset(pad, pad)
+	b.Text = string.sub(label, 1, 6)
+	b.ZIndex = 55
+	b.Parent = wrap
+	b.Active = true
+	b.Selectable = true
+	b.AutoButtonColor = false
+	b.Modal = false
+	S_style(b)
+
+	-- full-surface hit target (covers text + edges)
+	local hit = Instance.new("TextButton")
+	hit.Name = "Hit"
+	hit.Size = UDim2.fromScale(1, 1)
+	hit.Position = UDim2.fromOffset(0, 0)
+	hit.BackgroundTransparency = 1
+	hit.Text = ""
+	hit.ZIndex = 56
+	hit.Active = true
+	hit.AutoButtonColor = false
+	hit.Parent = wrap
+
+	local down = false
+	local dragging = false
+	local didMove = false
+	local startM, startP, downPos = nil, nil, nil
+	local DRAG_THRESHOLD = 18
+	local changedConn, endedConn = nil, nil
+
+	local function cleanupConns()
+		if changedConn then pcall(function() changedConn:Disconnect() end); changedConn = nil end
+		if endedConn then pcall(function() endedConn:Disconnect() end); endedConn = nil end
+	end
+
+	local function onDown(i)
+		if i.UserInputType ~= Enum.UserInputType.MouseButton1 and i.UserInputType ~= Enum.UserInputType.Touch then return end
+		down = true
+		didMove = false
+		dragging = false
+		downPos = i.Position
+		startM = i.Position
+		startP = wrap.AbsolutePosition
+		cleanupConns()
+		changedConn = UserInputService.InputChanged:Connect(function(ci)
+			if not down then return end
+			if ci.UserInputType ~= Enum.UserInputType.MouseMovement and ci.UserInputType ~= Enum.UserInputType.Touch then return end
+			local mag = (ci.Position - downPos).Magnitude
+			if mag > DRAG_THRESHOLD then
+				didMove = true
+				if not S.MLock then
+					dragging = true
+					local d = ci.Position - startM
+					local pa = S.MLayer.AbsolutePosition
+					wrap.Position = UDim2.fromOffset(startP.X + d.X - pa.X, startP.Y + d.Y - pa.Y)
+					wrap.AnchorPoint = Vector2.new(0, 0)
 				end
-				tw(b, 0.1, {BackgroundTransparency = S.MTrans})
-				
-				-- Mobile Fix: Trigger instantly if not dragged, pressing anywhere on the button
-				if not moved then
-					ripple(b, i.Position.X - b.AbsolutePosition.X, i.Position.Y - b.AbsolutePosition.Y, s*2)
-					if onPress then pcall(onPress) end
-				end
-				downAt = nil
 			end
-		end
-	end)
-	S.MBtns[id]={btn=b,label=label}
+		end)
+		endedConn = UserInputService.InputEnded:Connect(function(ei)
+			if ei.UserInputType ~= Enum.UserInputType.MouseButton1 and ei.UserInputType ~= Enum.UserInputType.Touch then return end
+			if not down then return end
+			down = false
+			cleanupConns()
+			if dragging then
+				S.MPos = S.MPos or {}
+				-- store visual button pos (without pad)
+				S.MPos[id] = {wrap.Position.X.Offset + pad, wrap.Position.Y.Offset + pad}
+			elseif not didMove then
+				ripple(b, s/2, s/2, s*2)
+				if onPress then task.defer(function() pcall(onPress) end) end
+			end
+			dragging = false
+			didMove = false
+			downPos = nil
+			startM = nil
+			startP = nil
+		end)
+	end
+
+	-- only the full-wrap hit target receives input (any edge = valid press)
+	hit.InputBegan:Connect(onDown)
+
+	S.MBtns[id] = {btn = b, wrap = wrap, label = label}
 end
+
 local function S_toggle(id)
 	for _,f in ipairs(S.Features) do
 		if f.id==id then
@@ -2445,12 +2348,18 @@ local function S_rebuildMobile()
 			S_makeBtn(f.id, f.label, function() S_toggle(f.id) end)
 		end
 	end
-	-- GK Buttons
-	S_makeBtn("_gkhelper", "GKHelp", function() S_toggle("gkhelper") end)
-	S_makeBtn("_autodive", "AutoDive", function() S_toggle("autodive") end)
-	S_makeBtn("_gkv2", "GKV2", function() S_toggle("gkv2") end)
-
-	-- always-available action buttons (catch + rmb) if enabled
+	-- always-available GK Helper mobile button when master mobile is on
+	if S.ShowGKHelperBtn ~= false then
+		S_makeBtn("_gkhelper", "GKHelp", function()
+			if GKHelper.Enabled then
+				StopGKHelper()
+				notify("GK Helper OFF", "warn")
+			else
+				StartGKHelper()
+				notify("GK Helper ON", "good")
+			end
+		end)
+	end
 	if S.ShowCatchBtns then
 		S_makeBtn("_highcatch", "HiCatch", function()
 			if not HRP then return end
@@ -2483,10 +2392,7 @@ local function S_rebuildMobile()
 	end
 end
 
-
-
-
--- CONFIG SAVE / LOAD
+-- CONFIG SAVE / LOAD (executor workspace)
 local CFG_FOLDER = "ValkyrieConfigs"
 local function cfgPath(name)
 	return CFG_FOLDER .. "/" .. tostring(name or S.ConfigName or "default") .. ".json"
@@ -2514,7 +2420,10 @@ end
 local function S_collectConfig()
 	S.MPos = S.MPos or {}
 	for id, e in pairs(S.MBtns) do
-		if e.btn and e.btn.Parent then
+		if e.wrap and e.wrap.Parent then
+			local pad = 10
+			S.MPos[id] = {e.wrap.Position.X.Offset + pad, e.wrap.Position.Y.Offset + pad}
+		elseif e.btn and e.btn.Parent then
 			S.MPos[id] = {e.btn.Position.X.Offset, e.btn.Position.Y.Offset}
 		end
 	end
@@ -2524,16 +2433,11 @@ local function S_collectConfig()
 		if ok then features[f.id] = val end
 	end
 	return {
-		version = 2,
-		MSize = S.MSize,
-		MTrans = S.MTrans,
-		MLock = S.MLock,
-		MShow = S.MShow,
+		version = 3,
+		MSize = S.MSize, MTrans = S.MTrans, MLock = S.MLock, MShow = S.MShow,
 		ShowCatchBtns = S.ShowCatchBtns,
-		AutoLoadConfig = S.AutoLoadConfig,
-		MobileOn = S.MobileOn,
-		MPos = S.MPos,
-		Keybinds = S_serializeKeybinds(),
+		ShowGKHelperBtn = S.ShowGKHelperBtn, AutoLoadConfig = S.AutoLoadConfig,
+		MobileOn = S.MobileOn, MPos = S.MPos, Keybinds = S_serializeKeybinds(),
 		Features = features,
 		Reach = ReachConfig and {
 			Master=ReachConfig.Master, Visualizer=ReachConfig.Visualizer,
@@ -2543,6 +2447,8 @@ local function S_collectConfig()
 		} or nil,
 		BallPred = BallPred and {Enabled=BallPred.Enabled, Threshold=BallPred.Threshold, Accuracy=BallPred.Accuracy} or nil,
 		CharSpeed = CharSpeed and {Enabled=CharSpeed.Enabled, Value=CharSpeed.Value} or nil,
+		WalkSpeedValue = WalkSpeedValue,
+		InfJump = InfJump,
 		AutoCatch = AutoCatch and {Enabled=AutoCatch.Enabled, Range=AutoCatch.Range, Cooldown=AutoCatch.Cooldown, CatchType=AutoCatch.CatchType, ManualEnabled=AutoCatch.ManualEnabled} or nil,
 		AutoSave = AutoSave and {Enabled=AutoSave.Enabled} or nil,
 		GKHelper = GKHelper and {Enabled=GKHelper.Enabled} or nil,
@@ -2584,6 +2490,7 @@ local function S_applyConfig(data)
 	if data.MLock ~= nil then S.MLock = data.MLock end
 	if data.MShow ~= nil then S.MShow = data.MShow end
 	if data.ShowCatchBtns ~= nil then S.ShowCatchBtns = data.ShowCatchBtns end
+	if data.ShowGKHelperBtn ~= nil then S.ShowGKHelperBtn = data.ShowGKHelperBtn end
 	if data.AutoLoadConfig ~= nil then S.AutoLoadConfig = data.AutoLoadConfig end
 	if type(data.MobileOn) == "table" then S.MobileOn = data.MobileOn end
 	if type(data.MPos) == "table" then S.MPos = data.MPos end
@@ -2597,10 +2504,19 @@ local function S_applyConfig(data)
 	if data.Reach and ReachConfig then merge(ReachConfig, data.Reach) end
 	if data.BallPred and BallPred then merge(BallPred, data.BallPred) end
 	if data.CharSpeed and CharSpeed then merge(CharSpeed, data.CharSpeed) end
+	if data.WalkSpeedValue then WalkSpeedValue = data.WalkSpeedValue; if Humanoid then Humanoid.WalkSpeed = WalkSpeedValue end end
+	if data.InfJump ~= nil then InfJump = data.InfJump end
 	if data.AutoCatch and AutoCatch then merge(AutoCatch, data.AutoCatch) end
-	if data.AutoSave and AutoSave then merge(AutoSave, data.AutoSave) end
-	if data.GKHelper and GKHelper then merge(GKHelper, data.GKHelper) end
-	if data.GKV2 and GKV2 then merge(GKV2, data.GKV2) end
+	if data.AutoSave and AutoSave then
+		if data.AutoSave.Enabled then StartAutoSave() else StopAutoSave() end
+	end
+	if data.GKHelper and GKHelper then
+		if data.GKHelper.Enabled then StartGKHelper() else StopGKHelper() end
+	end
+	if data.GKV2 and GKV2 then
+		merge(GKV2, data.GKV2)
+		if data.GKV2.Enabled then StartGKV2() else StopGKV2() end
+	end
 	if data.NoCooldown and NoCooldown then
 		if data.NoCooldown.Enabled then StartNoCooldown() else StopNoCooldown() end
 	end
@@ -2609,16 +2525,27 @@ local function S_applyConfig(data)
 		if data.BallMagnet.Enabled then StartBallMagnet() else StopBallMagnet() end
 	end
 	if data.AutoConfig and AutoConfig then merge(AutoConfig, data.AutoConfig) end
-	if data.MossV2 and MossV2 then merge(MossV2, data.MossV2) end
-	if data.AimbotV1 and AimbotV1 then merge(AimbotV1, data.AimbotV1) end
-	if data.AimbotV2 and AimbotV2 then merge(AimbotV2, data.AimbotV2) end
-	if data.PowerShot and PowerShot then merge(PowerShot, data.PowerShot) end
+	if data.MossV2 and MossV2 then
+		merge(MossV2, data.MossV2)
+		if data.MossV2.Enabled then StartMossV2() else StopMossV2() end
+	end
+	if data.AimbotV1 and AimbotV1 then
+		merge(AimbotV1, data.AimbotV1)
+		if data.AimbotV1.Enabled then StartAimbotV1() else StopAimbotV1() end
+	end
+	if data.AimbotV2 and AimbotV2 then
+		merge(AimbotV2, data.AimbotV2)
+		if data.AimbotV2.Enabled then StartAimbotV2() else StopAimbotV2() end
+	end
+	if data.PowerShot and PowerShot then
+		merge(PowerShot, data.PowerShot)
+		if data.PowerShot.Enabled then StartPowerShotWatch() else StopPowerShotWatch() end
+	end
 	if data.Radar then
 		if data.Radar.Size and RadarConfig then RadarConfig.Size = data.Radar.Size end
 		if data.Radar.MaxRange and RadarConfig then RadarConfig.MaxRange = data.Radar.MaxRange end
 		if data.Radar.Enabled then RadarEnabled=true; pcall(StartRadar) else pcall(StopRadar) end
 	end
-	-- feature toggles last so Start/Stop functions fire
 	if type(data.Features) == "table" then
 		for _, f in ipairs(S.Features) do
 			if data.Features[f.id] ~= nil then
@@ -2645,7 +2572,7 @@ local function S_saveConfig(name)
 	S.ConfigName = name
 	S_ensureFolder()
 	local data = S_collectConfig()
-	local ok, encoded = pcall(function() return game:GetService("HttpService"):JSONEncode(data) end)
+	local ok, encoded = pcall(function() return HttpService:JSONEncode(data) end)
 	if not ok then notify("Config encode failed", "bad"); return false end
 	local path = cfgPath(name)
 	local wok = pcall(function()
@@ -2663,25 +2590,12 @@ local function S_loadConfig(name)
 		return readfile(path)
 	end)
 	if not ok or type(raw) ~= "string" then notify("Config not found: "..name, "warn"); return false end
-	local dok, data = pcall(function() return game:GetService("HttpService"):JSONDecode(raw) end)
+	local dok, data = pcall(function() return HttpService:JSONDecode(raw) end)
 	if not dok or type(data) ~= "table" then notify("Config corrupt", "bad"); return false end
 	S_applyConfig(data)
 	notify("Loaded config: "..name, "good")
 	return true
 end
-local function S_listConfigs()
-	local list = {}
-	pcall(function()
-		if not listfiles then return end
-		S_ensureFolder()
-		for _, f in ipairs(listfiles(CFG_FOLDER) or {}) do
-			local n = tostring(f):gsub("\\", "/"):match("([^/]+)%.json$")
-			if n then table.insert(list, n) end
-		end
-	end)
-	return list
-end
-
 
 S_reg("reach","Reach",function() return ReachConfig.Master end,function(v)
 	ReachConfig.Master=v
@@ -2739,7 +2653,6 @@ S_reg("menu","Toggle Menu",function() return main.Visible end,function(v)
 	if v then show() else hide() end
 end)
 
-
 local mobileSetTab = makeTab("Mobile", "📱")
 mobileSetTab:Section("Mobile Buttons", "Size · lock · transparency · master")
 mobileSetTab:Toggle("Show Mobile Buttons", "Master switch for floating buttons", true, function(v)
@@ -2747,6 +2660,9 @@ mobileSetTab:Toggle("Show Mobile Buttons", "Master switch for floating buttons",
 end)
 mobileSetTab:Toggle("High / Low Catch Buttons", "On-screen HiCatch + LoCatch", true, function(v)
 	S.ShowCatchBtns=v; S_rebuildMobile()
+end)
+mobileSetTab:Toggle("GK Helper Button", "Always-on floating GK Helper toggle", true, function(v)
+	S.ShowGKHelperBtn=v; S_rebuildMobile()
 end)
 mobileSetTab:Toggle("Lock Buttons", "Freeze position (no drag)", false, function(v) S.MLock=v end)
 mobileSetTab:Slider("Button Size", "Mobile button pixel size", 32, 80, 48, function(v) S.MSize=v; S_lookAll() end, " px")
@@ -2789,26 +2705,20 @@ pcSetTab:Button("Clear All Keybinds", false, function() table.clear(S.Keybinds);
 pcSetTab:Label("RightControl still toggles the main menu window.")
 
 local configTab = makeTab("Config", "💾")
-configTab:Section("Named Configs", "Save everything you have on — reach, sliders, GK, sky…")
+configTab:Section("Named Configs", "Save toggles · sliders · keybinds · mobile layout")
 configTab:TextInput("Config Name", "e.g. mobile_gk", S.ConfigName or "default", function(t)
 	if t and t ~= "" then S.ConfigName = t end
 end)
 configTab:Toggle("Auto Load On Inject", "Load this name when script starts", true, function(v)
 	S.AutoLoadConfig = v
 end)
-configTab:Button("Save Config", true, function()
+configTab:Button("Save / Overwrite Config", true, function()
 	S_saveConfig(S.ConfigName or "default")
 end)
 configTab:Button("Load Config", false, function()
 	S_loadConfig(S.ConfigName or "default")
 end)
-configTab:Button("Save Positions Only", false, function()
-	S.MPos = S.MPos or {}
-	for id, e in pairs(S.MBtns) do
-		if e.btn and e.btn.Parent then
-			S.MPos[id] = {e.btn.Position.X.Offset, e.btn.Position.Y.Offset}
-		end
-	end
+configTab:Button("Overwrite Current", true, function()
 	S_saveConfig(S.ConfigName or "default")
 end)
 configTab:Section("Quick Slots", "One-tap save/load")
@@ -2818,9 +2728,11 @@ configTab:Button("Save → slot2", false, function() S_saveConfig("slot2") end)
 configTab:Button("Load ← slot2", false, function() S_loadConfig("slot2") end)
 configTab:Button("Save → mobile", false, function() S_saveConfig("mobile") end)
 configTab:Button("Load ← mobile", false, function() S_loadConfig("mobile") end)
-configTab:Label("Saves: toggles, reach X/Y/Z, sliders, PowerShot, aim, GK, moss, radar, sky, keybinds, mobile layout.")
+configTab:Label("Saves to executor workspace: ValkyrieConfigs/<name>.json")
+configTab:Label("Includes: all toggles, reach X/Y/Z, sliders, PowerShot, aim, GK, moss, radar, sky, keybinds, mobile layout.")
+
 task.defer(function()
-	task.wait(0.6)
+	task.wait(0.8)
 	if S.AutoLoadConfig then
 		pcall(function() S_loadConfig(S.ConfigName or "default") end)
 	end
@@ -2830,24 +2742,6 @@ end)
 local miscTab = makeTab("Misc", "M")
 miscTab:Section("Utility", nil)
 miscTab:Button("Notify Test", true, function() notify("Valkyrie.ui online","good") end)
-miscTab:Section("Scripts", "Load extra tools in-game")
-miscTab:Button("Load Custom Controls", true, function()
-	task.spawn(function()
-		local ok, err = pcall(function()
-			local src = game:HttpGet("https://scriptblox.com/raw/Universal-Script-Custom-controls-215266")
-			assert(type(src)=="string" and #src > 50, "empty response")
-			local fn, cerr = (loadstring or load)(src)
-			assert(fn, tostring(cerr))
-			fn()
-		end)
-		if ok then
-			notify("Custom Controls loaded", "good")
-		else
-			notify("Controls failed · " .. tostring(err):sub(1, 48), "bad")
-		end
-	end)
-end)
-miscTab:Label("Custom Controls: mobile touch pads / extra binds from scriptblox.")
 miscTab:Section("Unload", nil)
 miscTab:Button("Unload", false, function()
 	task.spawn(function()
