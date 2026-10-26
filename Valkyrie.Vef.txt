@@ -1,4 +1,3 @@
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -9,6 +8,7 @@ local Lighting = game:GetService("Lighting")
 local StarterPack = game:GetService("StarterPack")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local VirtualUser = game:GetService("VirtualUser")
+local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 local Character, Humanoid, HRP
@@ -252,7 +252,6 @@ end)
 local top = bx(main, P.top, 4); top.BackgroundTransparency = 0.05; top.Size = UDim2.new(1,0,0,TOP)
 top.Active = true; top.Selectable = true
 drag(top, main); sheen(top, 5)
--- also allow dragging from side rail (mobile-friendly whole UI)
 local hair = bx(top, P.line, 5); hair.Size = UDim2.new(1,0,0,1); hair.Position = UDim2.new(0,0,1,-1)
 grad(hair, P.accent, P.line, 0)
 local mark = drawMark(top, 26, 6); mark.Position = UDim2.fromOffset(12,11)
@@ -544,7 +543,6 @@ local function makeTab(name, icon)
 		btn.Text = "  "..tostring(cur).."  v"; btn.FontFace = F_S; btn.TextSize = 12
 		btn.TextColor3 = P.text; btn.TextXAlignment = Enum.TextXAlignment.Left
 		btn.ZIndex = 6; btn.Parent = r; corner(btn, 8); stroke(btn, P.line, 1, 0.35)
-		-- dropdown list sits under this row (same tab, not page top)
 		local list = Instance.new("Frame")
 		list.Name = "DropList"
 		list.BackgroundColor3 = P.panel
@@ -1959,8 +1957,7 @@ local function StartPowerShotWatch()
 			break
 		end
 	end)
-end
-local function StopPowerShotWatch()
+endlocal function StopPowerShotWatch()
 	if powerShotFallbackConn then pcall(function() powerShotFallbackConn:Disconnect() end); powerShotFallbackConn=nil end
 end
 
@@ -2029,7 +2026,7 @@ local PowerShot = FE.PowerShot
 local StartPowerShotWatch = FE.StartPowerShotWatch
 local StopPowerShotWatch = FE.StopPowerShotWatch
 
--- SKYBOX (from Fivelyss presets)
+-- SKYBOX
 local SkyboxCfg = { Enabled = false, Current = "Default", OriginalSky = nil, OriginalSkyParent = nil }
 pcall(function()
 	local sky = Lighting:FindFirstChildOfClass("Sky")
@@ -2038,49 +2035,8 @@ end)
 local SKYBOX_PRESETS = {
 	["Default"] = nil,
 	["Space"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=5000 },
-	["Nebula"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=8000 },
-	["Galaxy"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=12000 },
-	["Deep Space"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=20000 },
-	["Night Sky"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=3000 },
-	["Red Nebula"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=10000 },
-	["Purple Galaxy"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=15000 },
-	["Blue Nebula"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=12000 },
-	["Void"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=500 },
-	["Stars"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=2500 },
-	["Milky Way"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=18000 },
-	["Cosmos"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=16000 },
-	["Infinity"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=22000 },
-	["Eclipse"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=1000 },
-	["Blood Moon"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=4000 },
-	["Cyberpunk"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=6000 },
-	["Matrix"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=7000 },
-	["Neon"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=9000 },
-	["Toxic"] = { SkyboxBk="rbxassetid://159454299", SkyboxDn="rbxassetid://159454296", SkyboxFt="rbxassetid://159454293", SkyboxLf="rbxassetid://159454286", SkyboxRt="rbxassetid://159454300", SkyboxUp="rbxassetid://159454288", StarCount=3000 },
-	["Sunset"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Sunrise"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Golden Hour"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Twilight"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Dawn"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Aurora"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Northern Lights"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Rainbow"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Vaporwave"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Retro"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Fire"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Hell"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Desert"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Ocean"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Deep Ocean"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Tropical"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Ice"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Jungle"] = { SkyboxBk="rbxassetid://4581982114", SkyboxDn="rbxassetid://4581982271", SkyboxFt="rbxassetid://4581982425", SkyboxLf="rbxassetid://4581982560", SkyboxRt="rbxassetid://4581982687", SkyboxUp="rbxassetid://4581982817", StarCount=0 },
-	["Cloudy"] = { SkyboxBk="rbxassetid://5705570148", SkyboxDn="rbxassetid://5705570242", SkyboxFt="rbxassetid://5705570342", SkyboxLf="rbxassetid://5705570451", SkyboxRt="rbxassetid://5705570548", SkyboxUp="rbxassetid://5705570630", StarCount=0 },
-	["Storm"] = { SkyboxBk="rbxassetid://5705570148", SkyboxDn="rbxassetid://5705570242", SkyboxFt="rbxassetid://5705570342", SkyboxLf="rbxassetid://5705570451", SkyboxRt="rbxassetid://5705570548", SkyboxUp="rbxassetid://5705570630", StarCount=0 },
-	["Overcast"] = { SkyboxBk="rbxassetid://5705570148", SkyboxDn="rbxassetid://5705570242", SkyboxFt="rbxassetid://5705570342", SkyboxLf="rbxassetid://5705570451", SkyboxRt="rbxassetid://5705570548", SkyboxUp="rbxassetid://5705570630", StarCount=0 },
-	["Snow"] = { SkyboxBk="rbxassetid://5705570148", SkyboxDn="rbxassetid://5705570242", SkyboxFt="rbxassetid://5705570342", SkyboxLf="rbxassetid://5705570451", SkyboxRt="rbxassetid://5705570548", SkyboxUp="rbxassetid://5705570630", StarCount=0 },
-	["Heaven"] = { SkyboxBk="rbxassetid://5705570148", SkyboxDn="rbxassetid://5705570242", SkyboxFt="rbxassetid://5705570342", SkyboxLf="rbxassetid://5705570451", SkyboxRt="rbxassetid://5705570548", SkyboxUp="rbxassetid://5705570630", StarCount=0 },
 }
-local SKY_NAMES = {"Default","Space","Nebula","Galaxy","Deep Space","Night Sky","Red Nebula","Purple Galaxy","Blue Nebula","Void","Stars","Milky Way","Cosmos","Infinity","Eclipse","Blood Moon","Cyberpunk","Matrix","Neon","Toxic","Sunset","Sunrise","Golden Hour","Twilight","Dawn","Aurora","Northern Lights","Rainbow","Vaporwave","Retro","Fire","Hell","Desert","Ocean","Deep Ocean","Tropical","Ice","Jungle","Cloudy","Storm","Overcast","Snow","Heaven"}
+local SKY_NAMES = {"Default","Space"}
 local function RemoveCustomSky()
 	pcall(function()
 		local existing = Lighting:FindFirstChild("Valkyrie_Sky")
@@ -2148,136 +2104,15 @@ local VISUAL_PRESETS = {
 			end)
 		end
 	end,
-	["Dark"] = function()
-		ClearFX()
-		Lighting.Ambient = Color3.fromRGB(15,15,22)
-		Lighting.OutdoorAmbient = Color3.fromRGB(25,25,35)
-		Lighting.Brightness = 0.6
-		Lighting.ExposureCompensation = -0.4
-		Lighting.FogColor = Color3.fromRGB(10,10,18)
-		Lighting.FogStart = 40; Lighting.FogEnd = 400
-		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
-		cc.Brightness = -0.05; cc.Contrast = 0.25; cc.Saturation = -0.15; cc.TintColor = Color3.fromRGB(180,190,220)
-	end,
-	["Light"] = function()
-		ClearFX()
-		Lighting.Ambient = Color3.fromRGB(180,180,190)
-		Lighting.OutdoorAmbient = Color3.fromRGB(200,200,210)
-		Lighting.Brightness = 3
-		Lighting.ExposureCompensation = 0.35
-		Lighting.FogStart = 0; Lighting.FogEnd = 100000
-		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
-		cc.Brightness = 0.08; cc.Contrast = 0.1; cc.Saturation = 0.05; cc.TintColor = Color3.fromRGB(255,255,255)
-		local bl = Ensure("BloomEffect","Valkyrie_Bloom")
-		bl.Intensity = 0.4; bl.Size = 24; bl.Threshold = 1.2
-	end,
-	["Abundance"] = function()
-		ClearFX()
-		Lighting.Ambient = Color3.fromRGB(90,70,120)
-		Lighting.OutdoorAmbient = Color3.fromRGB(110,90,140)
-		Lighting.Brightness = 2.2
-		Lighting.ExposureCompensation = 0.2
-		Lighting.FogColor = Color3.fromRGB(80,50,120)
-		Lighting.FogStart = 60; Lighting.FogEnd = 600
-		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
-		cc.Brightness = 0.05; cc.Contrast = 0.2; cc.Saturation = 0.35; cc.TintColor = Color3.fromRGB(230,200,255)
-		local bl = Ensure("BloomEffect","Valkyrie_Bloom")
-		bl.Intensity = 1.1; bl.Size = 40; bl.Threshold = 0.85
-		local rays = Ensure("SunRaysEffect","Valkyrie_Rays")
-		rays.Intensity = 0.15; rays.Spread = 0.6
-	end,
-	["Bright"] = function()
-		ClearFX()
-		Lighting.Ambient = Color3.fromRGB(220,220,220)
-		Lighting.OutdoorAmbient = Color3.fromRGB(255,255,255)
-		Lighting.Brightness = 4
-		Lighting.ExposureCompensation = 0.6
-		Lighting.FogStart = 0; Lighting.FogEnd = 100000
-		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
-		cc.Brightness = 0.12; cc.Contrast = 0.05; cc.Saturation = 0.1; cc.TintColor = Color3.fromRGB(255,255,255)
-	end,
-	["Night"] = function()
-		ClearFX()
-		Lighting.Ambient = Color3.fromRGB(20,24,40)
-		Lighting.OutdoorAmbient = Color3.fromRGB(30,35,55)
-		Lighting.Brightness = 0.8
-		Lighting.ClockTime = 0
-		Lighting.ExposureCompensation = -0.2
-		Lighting.FogColor = Color3.fromRGB(15,18,35)
-		Lighting.FogStart = 30; Lighting.FogEnd = 350
-		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
-		cc.Brightness = -0.02; cc.Contrast = 0.2; cc.Saturation = -0.05; cc.TintColor = Color3.fromRGB(160,175,255)
-	end,
-	["Soft"] = function()
-		ClearFX()
-		Lighting.Ambient = Color3.fromRGB(140,135,150)
-		Lighting.OutdoorAmbient = Color3.fromRGB(160,155,170)
-		Lighting.Brightness = 1.8
-		Lighting.ExposureCompensation = 0.1
-		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
-		cc.Brightness = 0.02; cc.Contrast = -0.05; cc.Saturation = 0.08; cc.TintColor = Color3.fromRGB(255,245,250)
-		local bl = Ensure("BloomEffect","Valkyrie_Bloom")
-		bl.Intensity = 0.55; bl.Size = 30; bl.Threshold = 1.0
-		local blur = Ensure("BlurEffect","Valkyrie_Blur")
-		blur.Size = 2
-	end,
-	["Contrast"] = function()
-		ClearFX()
-		Lighting.Ambient = Color3.fromRGB(80,80,80)
-		Lighting.OutdoorAmbient = Color3.fromRGB(100,100,100)
-		Lighting.Brightness = 2
-		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
-		cc.Brightness = 0; cc.Contrast = 0.45; cc.Saturation = 0.15; cc.TintColor = Color3.fromRGB(255,255,255)
-	end,
-	["Warm"] = function()
-		ClearFX()
-		Lighting.Ambient = Color3.fromRGB(160,120,90)
-		Lighting.OutdoorAmbient = Color3.fromRGB(180,140,100)
-		Lighting.Brightness = 2.4
-		Lighting.ExposureCompensation = 0.15
-		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
-		cc.Brightness = 0.04; cc.Contrast = 0.12; cc.Saturation = 0.2; cc.TintColor = Color3.fromRGB(255,220,180)
-		local bl = Ensure("BloomEffect","Valkyrie_Bloom")
-		bl.Intensity = 0.7; bl.Size = 28; bl.Threshold = 0.95
-	end,
-	["Cold"] = function()
-		ClearFX()
-		Lighting.Ambient = Color3.fromRGB(90,120,150)
-		Lighting.OutdoorAmbient = Color3.fromRGB(110,140,170)
-		Lighting.Brightness = 1.9
-		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
-		cc.Brightness = 0; cc.Contrast = 0.15; cc.Saturation = -0.05; cc.TintColor = Color3.fromRGB(200,230,255)
-	end,
-	["Noir"] = function()
-		ClearFX()
-		Lighting.Ambient = Color3.fromRGB(40,40,40)
-		Lighting.OutdoorAmbient = Color3.fromRGB(55,55,55)
-		Lighting.Brightness = 1.2
-		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
-		cc.Brightness = -0.05; cc.Contrast = 0.35; cc.Saturation = -1; cc.TintColor = Color3.fromRGB(255,255,255)
-	end,
-	["Vivid"] = function()
-		ClearFX()
-		Lighting.Ambient = Color3.fromRGB(130,130,140)
-		Lighting.OutdoorAmbient = Color3.fromRGB(150,150,160)
-		Lighting.Brightness = 2.5
-		local cc = Ensure("ColorCorrectionEffect","Valkyrie_CC")
-		cc.Brightness = 0.05; cc.Contrast = 0.3; cc.Saturation = 0.55; cc.TintColor = Color3.fromRGB(255,255,255)
-		local bl = Ensure("BloomEffect","Valkyrie_Bloom")
-		bl.Intensity = 0.9; bl.Size = 35; bl.Threshold = 0.9
-	end,
 }
-local VISUAL_NAMES = {"Default","Dark","Light","Abundance","Bright","Night","Soft","Contrast","Warm","Cold","Noir","Vivid"}
+local VISUAL_NAMES = {"Default"}
 local function ApplyVisual(name)
 	VisualFX.Current = name
 	local fn = VISUAL_PRESETS[name]
 	if fn then pcall(fn) end
 end
 
-
-
-
--- TABS (exact Kaiven names + emoji-style icons)
+-- TABS
 local playerTab = makeTab("Player", "👤")
 playerTab:Section("Reach", "Extends hitbox to touch ball")
 playerTab:Toggle("Reach", "Master switch", false, function(v)
@@ -2531,41 +2366,49 @@ local function S_makeBtn(id, label, onPress)
 		b.Position=UDim2.new(1, -s-16-(h%3)*8, 0.2+(h%10)*0.06, 0)
 	end
 	b.Text=string.sub(label,1,6); b.ZIndex=55; b.Parent=S.MLayer; S_style(b)
+	
 	local dragging,startM,startP=false,nil,nil
+	local downAt, moved = nil, false
+	
 	b.InputBegan:Connect(function(i)
-		if S.MLock then return end
 		if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-			dragging=true; startM=i.Position; startP=b.AbsolutePosition
-		end
-	end)
-	UserInputService.InputEnded:Connect(function(i)
-		if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-			if dragging then
-				dragging=false
-				S.MPos = S.MPos or {}
-				S.MPos[id] = {b.Position.X.Offset, b.Position.Y.Offset}
+			downAt = i.Position
+			moved = false
+			if not S.MLock then
+				dragging=true; startM=i.Position; startP=b.AbsolutePosition
 			end
+			tw(b, 0.1, {BackgroundTransparency = math.max(0, S.MTrans - 0.1)})
 		end
 	end)
+	
 	UserInputService.InputChanged:Connect(function(i)
 		if not dragging or S.MLock then return end
 		if i.UserInputType~=Enum.UserInputType.MouseMovement and i.UserInputType~=Enum.UserInputType.Touch then return end
-		local d=i.Position-startM; local pa=S.MLayer.AbsolutePosition
-		b.Position=UDim2.fromOffset(startP.X+d.X-pa.X, startP.Y+d.Y-pa.Y); b.AnchorPoint=Vector2.new(0,0)
-	end)
-	local moved,downAt=false,nil
-	b.InputBegan:Connect(function(i)
-		if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then downAt=i.Position; moved=false end
-	end)
-	UserInputService.InputChanged:Connect(function(i)
-		if downAt and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
-			if (i.Position-downAt).Magnitude>8 then moved=true end
+		if downAt and (i.Position - downAt).Magnitude > 8 then
+			moved = true
+			local d=i.Position-startM; local pa=S.MLayer.AbsolutePosition
+			b.Position=UDim2.fromOffset(startP.X+d.X-pa.X, startP.Y+d.Y-pa.Y); b.AnchorPoint=Vector2.new(0,0)
 		end
 	end)
-	b.MouseButton1Click:Connect(function()
-		if moved then return end
-		ripple(b,s/2,s/2,s*2)
-		if onPress then pcall(onPress) end
+	
+	UserInputService.InputEnded:Connect(function(i)
+		if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+			if downAt then
+				if dragging then
+					dragging=false
+					S.MPos = S.MPos or {}
+					S.MPos[id] = {b.Position.X.Offset, b.Position.Y.Offset}
+				end
+				tw(b, 0.1, {BackgroundTransparency = S.MTrans})
+				
+				-- Mobile Fix: Trigger instantly if not dragged, pressing anywhere on the button
+				if not moved then
+					ripple(b, i.Position.X - b.AbsolutePosition.X, i.Position.Y - b.AbsolutePosition.Y, s*2)
+					if onPress then pcall(onPress) end
+				end
+				downAt = nil
+			end
+		end
 	end)
 	S.MBtns[id]={btn=b,label=label}
 end
@@ -2602,6 +2445,11 @@ local function S_rebuildMobile()
 			S_makeBtn(f.id, f.label, function() S_toggle(f.id) end)
 		end
 	end
+	-- GK Buttons
+	S_makeBtn("_gkhelper", "GKHelp", function() S_toggle("gkhelper") end)
+	S_makeBtn("_autodive", "AutoDive", function() S_toggle("autodive") end)
+	S_makeBtn("_gkv2", "GKV2", function() S_toggle("gkv2") end)
+
 	-- always-available action buttons (catch + rmb) if enabled
 	if S.ShowCatchBtns then
 		S_makeBtn("_highcatch", "HiCatch", function()
